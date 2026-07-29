@@ -1,0 +1,44 @@
+<app-panel-section title="Fill &amp; stroke">
+  <app-color-input
+    label="Fill"
+    [value]="element().fill"
+    [disabled]="disabled()"
+    (focusin)="beginGesture()"
+    (focusout)="endGesture()"
+    (valueChange)="setFill($event)"
+  />
+
+  <div class="shape-properties__row">
+    <app-color-input
+      label="Stroke"
+      [value]="element().stroke"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setStroke($event)"
+    />
+    <app-number-input
+      label="Stroke width"
+      suffix="px"
+      [min]="0"
+      [value]="element().strokeWidth"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setStrokeWidth($event)"
+    />
+  </div>
+
+  @if (element().shape === 'rectangle') {
+    <app-number-input
+      label="Corner radius"
+      suffix="px"
+      [min]="0"
+      [value]="element().cornerRadius"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setCornerRadius($event)"
+    />
+  }
+</app-panel-section>

@@ -1,0 +1,36 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.text-properties {
+  &__content {
+    min-height: 64px;
+    resize: vertical;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+    align-items: end;
+  }
+
+  &__style,
+  &__align {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  &__style-label {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  &__style-group {
+    display: flex;
+    gap: var(--space-1);
+  }
+}

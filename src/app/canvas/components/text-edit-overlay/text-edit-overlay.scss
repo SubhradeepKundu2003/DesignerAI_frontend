@@ -1,0 +1,30 @@
+:host {
+  // Anchored to the same box as `.stage`, so the coordinates computed for the
+  // textarea line up with the page without any translation of their own.
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  // Nothing here should intercept a click when no edit is open; the textarea
+  // opts back in for itself below.
+  pointer-events: none;
+}
+
+.text-edit-overlay {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  border: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  outline: 1px solid var(--color-accent);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  transform-origin: top left;
+  pointer-events: auto;
+
+  &:focus {
+    outline-width: 2px;
+  }
+}

@@ -1,0 +1,40 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.shell {
+  display: grid;
+  height: 100%;
+  grid-template:
+    'toolbar toolbar toolbar' var(--toolbar-height)
+    'sidebar canvas  props' 1fr
+    'sidebar zoombar props' var(--zoombar-height)
+    / var(--sidebar-width) 1fr var(--properties-width);
+
+  &__toolbar {
+    grid-area: toolbar;
+  }
+
+  &__sidebar {
+    overflow: hidden;
+    grid-area: sidebar;
+  }
+
+  // `min-*: 0` lets the canvas column shrink instead of forcing the grid wider
+  // than the viewport when the page is zoomed in.
+  &__canvas {
+    min-width: 0;
+    min-height: 0;
+    grid-area: canvas;
+  }
+
+  &__properties {
+    overflow: hidden;
+    grid-area: props;
+  }
+
+  &__zoombar {
+    grid-area: zoombar;
+  }
+}

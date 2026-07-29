@@ -1,0 +1,12 @@
+<app-panel-section title="Image">
+  <button
+    type="button"
+    class="image-properties__replace"
+    [disabled]="disabled()"
+    (click)="chooseReplacement()"
+  >
+    <app-icon name="upload" [size]="16" />
+    Replace image
+  </button>
+  <input #fileInput type="file" accept="image/*" hidden (change)="onFileSelected($event)" />
+</app-panel-section>

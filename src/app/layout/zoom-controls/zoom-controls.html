@@ -1,0 +1,29 @@
+<div class="zoombar">
+  <span class="zoombar__page">Page 1 &middot; A4 portrait</span>
+
+  <div class="zoombar__controls" role="group" aria-label="Zoom">
+    <app-icon-button
+      icon="minus"
+      label="Zoom out"
+      [disabled]="!canZoomOut()"
+      (activated)="zoomOut()"
+    />
+
+    <input
+      class="zoombar__value"
+      type="text"
+      inputmode="numeric"
+      aria-label="Zoom percentage"
+      [value]="zoomPercent()"
+      (change)="applyTypedZoom($any($event.target).value)"
+      (keydown.enter)="applyTypedZoom($any($event.target).value)"
+    />
+
+    <app-icon-button icon="plus" label="Zoom in" [disabled]="!canZoomIn()" (activated)="zoomIn()" />
+
+    <span class="zoombar__divider" role="separator"></span>
+
+    <app-icon-button icon="fit" label="Fit page to view" (activated)="fit()" />
+    <button type="button" class="zoombar__reset" (click)="reset()">100%</button>
+  </div>
+</div>

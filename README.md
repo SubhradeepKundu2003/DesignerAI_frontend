@@ -1,59 +1,92 @@
-# DesigneraiFrontend
+# DesignerAI — Newsletter Design Platform (Frontend)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.16.
+An AI-powered newsletter design platform. This repository contains the Angular frontend: a page-based **newsletter editing canvas** that will become the rendering target for AI-generated newsletter layouts.
 
-## Development server
+> **Current phase:** building the editable canvas only — no AI, backend, auth, templates, or export yet. See [PLAN.md](PLAN.md) for the full architecture and implementation plan.
+>
+> **Status:** milestone M1 (scaffolding & workspace shell) is complete — the editor layout, design system, Canvas JSON model and viewport (zoom/pan/fit) are in place. Element rendering, selection and editing follow in M2–M7.
 
-To start a local development server, run:
+## What this is (and isn't)
 
-```bash
-ng serve
+- ✅ A focused, page-based newsletter editor — A4 page, safe margins, grid, snapping
+- ✅ The foundation for AI-generated layouts (AI will emit Canvas JSON; the editor renders it)
+- ❌ Not a Canva/Figma clone, not a general graphics editor, not an infinite canvas
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Angular 21 (standalone components, no NgModules) |
+| Language | TypeScript |
+| State | Angular Signals (RxJS only where event streams help) |
+| Rendering | Konva.js (official package, not ngx-konva) |
+| Styling | SCSS (design tokens + component-scoped styles) |
+| Persistence | localStorage (Canvas JSON) |
+
+## Core Architectural Rule
+
+**Canvas JSON is the single source of truth. Konva only renders it.**
+
+```
+User Input ──► Command ──► Canvas JSON (signal store) ──► Reconciler ──► Konva Stage
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Every mutation (move, resize, rotate, edit, delete) updates the Canvas JSON first via an undoable command; a reconciler then diffs the JSON against the Konva scene graph. The future AI service plugs into the exact same pipeline:
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
+```
+User Prompt ──► AI Service (Qwen3.5:9B MLX) ──► Canvas JSON ──► Angular ──► Konva Renderer
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The AI never manipulates Konva directly.
 
-```bash
-ng generate --help
+## Editor Features (this phase)
+
+- **Workspace** — top toolbar, left sidebar, centered canvas, right properties panel, bottom zoom controls
+- **Canvas** — white A4 portrait page on a grey workspace, drop shadow, safe margins, mouse-wheel zoom, pan, zoom-to-fit
+- **Elements** — text, rectangle, circle, divider, image; all support select / drag / resize / rotate / duplicate / delete / reorder / lock / hide
+- **Text** — double-click inline editing, font family/size/color, bold/italic, alignment, letter spacing, line height
+- **Images** — upload, replace, opacity, resize, rotate
+- **Grid & snapping** — grid toggle, snap-to-grid, alignment guides, safe-area display
+- **Layers panel** — rename, lock, hide, reorder, select
+- **History** — full undo/redo via the command pattern
+- **Save/Load** — Canvas JSON persisted to localStorage (autosave + explicit save)
+
+## Project Structure
+
+```
+src/
+├── styles.scss  # Global stylesheet
+├── styles/      # SCSS partials: design tokens, mixins, reset, typography, forms
+└── app/
+
+app/
+├── core/        # App-wide singletons (storage, …)
+├── layout/      # Editor shell: toolbar, sidebar, properties panel, zoom bar
+├── canvas/      # The editor domain
+│   ├── models/      # Canvas JSON model (single source of truth / AI contract)
+│   ├── state/       # Signal stores: document, selection, viewport, history, settings
+│   ├── commands/    # Undoable commands + command bus
+│   ├── renderers/   # Konva stage, per-element renderers, reconciler, grid/guides
+│   ├── components/  # Canvas workspace, text-edit overlay, layers, property forms
+│   ├── services/    # Element factory, snapping, image upload, persistence
+│   └── utils/       # ids, geometry, keyboard shortcuts
+└── shared/      # Reusable presentational components (inputs, buttons, panels)
 ```
 
-## Building
-
-To build the project run:
+## Getting Started
 
 ```bash
-ng build
+npm install
+npm start        # ng serve → http://localhost:4200
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Other scripts:
 
 ```bash
-ng test
+npm run build    # production build → dist/
+npm test         # unit tests (Vitest)
 ```
 
-## Running end-to-end tests
+## Documentation
 
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- [PLAN.md](PLAN.md) — full implementation plan: data model, state design, command system, rendering architecture, milestones

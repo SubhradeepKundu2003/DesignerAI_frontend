@@ -1,1 +1,7 @@
-/* You can add global styles to this file, and also import other style files */
+// Global stylesheet. Design tokens and cross-cutting base styles only —
+// everything else lives in component-scoped SCSS.
+
+@use 'tokens';
+@use 'reset';
+@use 'typography';
+@use 'forms';

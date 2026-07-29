@@ -1,0 +1,30 @@
+<app-panel-section title="Line">
+  <div class="divider-properties__row">
+    <app-color-input
+      label="Colour"
+      [value]="element().stroke"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setStroke($event)"
+    />
+    <app-number-input
+      label="Thickness"
+      suffix="px"
+      [min]="1"
+      [value]="element().strokeWidth"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setStrokeWidth($event)"
+    />
+  </div>
+
+  <app-select-input
+    label="Style"
+    [value]="dashStyle()"
+    [options]="dashOptions"
+    [disabled]="disabled()"
+    (valueChange)="setDashStyle($event)"
+  />
+</app-panel-section>

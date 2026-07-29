@@ -1,0 +1,79 @@
+@use 'mixins' as mx;
+
+// Base control styling. Lives globally (not in a component) because the same
+// look is shared by every properties-panel input, and global element selectors
+// still reach elements rendered inside encapsulated components.
+
+input[type='text'],
+input[type='number'],
+select,
+textarea {
+  @include mx.focus-ring(0);
+
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  transition: border-color var(--transition-fast);
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-border-strong);
+  }
+
+  &:focus-visible {
+    border-color: var(--color-accent);
+  }
+
+  &:disabled {
+    background: var(--color-surface-sunken);
+    color: var(--color-text-subtle);
+    cursor: default;
+  }
+}
+
+input[type='number'] {
+  // Number inputs are edited by typing or by the panel's own controls; the
+  // native spinners add visual noise at this density.
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    margin: 0;
+    appearance: none;
+  }
+}
+
+select {
+  padding-right: var(--space-5);
+  cursor: pointer;
+}
+
+input[type='range'] {
+  width: 100%;
+  height: 20px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+input[type='color'] {
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+
+  &::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  &::-webkit-color-swatch {
+    border: 0;
+    border-radius: var(--radius-sm);
+  }
+}

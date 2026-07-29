@@ -1,0 +1,27 @@
+@use 'mixins' as mx;
+
+.image-properties__replace {
+  @include mx.button-reset;
+  @include mx.focus-ring;
+
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  gap: var(--space-3);
+  font-size: var(--text-md);
+  transition: background var(--transition-fast);
+
+  &:hover:not(:disabled) {
+    background: var(--color-surface-hover);
+  }
+
+  &:disabled {
+    color: var(--color-text-subtle);
+    cursor: default;
+  }
+}

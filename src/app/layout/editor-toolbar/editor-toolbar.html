@@ -1,0 +1,83 @@
+<div class="toolbar">
+  <div class="toolbar__brand">
+    <span class="toolbar__mark">D</span>
+    <span class="toolbar__title">Untitled newsletter</span>
+    @if (justSaved()) {
+      <span class="toolbar__saved">Saved</span>
+    }
+  </div>
+
+  <div class="toolbar__group" role="group" aria-label="Persistence">
+    <app-icon-button icon="save" label="Save" (activated)="save()" />
+    <app-icon-button icon="open" label="Load" [disabled]="!canLoad()" (activated)="load()" />
+  </div>
+
+  <span class="toolbar__divider" role="separator"></span>
+
+  <div class="toolbar__group" role="group" aria-label="History">
+    <app-icon-button
+      icon="undo"
+      [label]="undoLabel()"
+      [disabled]="!canUndo()"
+      (activated)="undo()"
+    />
+    <app-icon-button
+      icon="redo"
+      [label]="redoLabel()"
+      [disabled]="!canRedo()"
+      (activated)="redo()"
+    />
+  </div>
+
+  <span class="toolbar__divider" role="separator"></span>
+
+  <div class="toolbar__group" role="group" aria-label="Object">
+    <app-icon-button
+      icon="duplicate"
+      label="Duplicate"
+      [disabled]="!canDuplicate()"
+      (activated)="duplicate()"
+    />
+    <app-icon-button icon="trash" label="Delete" [disabled]="!canDelete()" (activated)="delete()" />
+  </div>
+
+  <span class="toolbar__divider" role="separator"></span>
+
+  <div class="toolbar__group" role="group" aria-label="Arrange">
+    <app-icon-button
+      icon="bringForward"
+      label="Bring forward"
+      [disabled]="!canBringForward()"
+      (activated)="bringForward()"
+    />
+    <app-icon-button
+      icon="sendBackward"
+      label="Send backward"
+      [disabled]="!canSendBackward()"
+      (activated)="sendBackward()"
+    />
+  </div>
+
+  <span class="toolbar__spacer"></span>
+
+  <div class="toolbar__group" role="group" aria-label="Canvas aids">
+    <app-icon-button
+      icon="grid"
+      label="Toggle grid"
+      variant="toggle"
+      [active]="gridVisible()"
+      (activated)="toggleGrid()"
+    />
+    <app-icon-button
+      icon="magnet"
+      label="Toggle snapping"
+      variant="toggle"
+      [active]="snapEnabled()"
+      (activated)="toggleSnap()"
+    />
+  </div>
+
+  <span class="toolbar__divider" role="separator"></span>
+
+  <output class="toolbar__zoom" aria-label="Current zoom">{{ zoomPercent() }}%</output>
+</div>

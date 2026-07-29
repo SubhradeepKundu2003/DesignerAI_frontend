@@ -1,12 +1,17 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+
+import { PersistenceService } from './canvas/services/persistence.service';
+import { EditorShell } from './layout/editor-shell/editor-shell';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [EditorShell],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
-  protected readonly title = signal('designerai-frontend');
+  constructor() {
+    inject(PersistenceService).restoreOnStartup();
+  }
 }

@@ -1,0 +1,14 @@
+@use 'mixins' as mx;
+
+:host {
+  display: inline-flex;
+}
+
+.icon-button {
+  @include mx.icon-button;
+
+  &--active:not(:disabled) {
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+}

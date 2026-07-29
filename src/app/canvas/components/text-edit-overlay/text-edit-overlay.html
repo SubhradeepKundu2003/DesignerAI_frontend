@@ -1,0 +1,22 @@
+@if (overlayStyle(); as style) {
+  <textarea
+    #textareaRef
+    class="text-edit-overlay"
+    spellcheck="false"
+    [style.left.px]="style.left"
+    [style.top.px]="style.top"
+    [style.width.px]="style.width"
+    [style.transform]="'rotate(' + style.rotation + 'deg)'"
+    [style.font-family]="style.fontFamily"
+    [style.font-size.px]="style.fontSize"
+    [style.font-weight]="style.fontWeight"
+    [style.font-style]="style.fontStyleCss"
+    [style.color]="style.color"
+    [style.text-align]="style.textAlign"
+    [style.letter-spacing.px]="style.letterSpacing"
+    [style.line-height]="style.lineHeight"
+    (input)="onInput($event)"
+    (keydown)="onKeydown($event)"
+    (blur)="commit()"
+  ></textarea>
+}

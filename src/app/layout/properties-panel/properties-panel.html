@@ -1,0 +1,29 @@
+<aside class="properties" aria-label="Properties">
+  <h2 class="properties__heading">Properties</h2>
+
+  @if (element(); as el) {
+    <div class="properties__form">
+      <app-common-properties [element]="el" [disabled]="disabled()" />
+
+      @if (textElement(); as text) {
+        <app-text-properties [element]="text" [disabled]="disabled()" />
+      } @else if (shapeElement(); as shape) {
+        <app-shape-properties [element]="shape" [disabled]="disabled()" />
+      } @else if (dividerElement(); as divider) {
+        <app-divider-properties [element]="divider" [disabled]="disabled()" />
+      } @else if (imageElement(); as image) {
+        <app-image-properties [element]="image" [disabled]="disabled()" />
+      }
+
+      @if (disabled()) {
+        <p class="properties__locked-hint">This element is locked.</p>
+      }
+    </div>
+  } @else {
+    <div class="properties__empty">
+      <app-icon name="cursor" [size]="20" />
+      <p class="properties__empty-title">Nothing selected</p>
+      <p class="properties__empty-hint">Select an element on the page to edit its properties.</p>
+    </div>
+  }
+</aside>

@@ -1,0 +1,25 @@
+:host {
+  display: block;
+}
+
+.slider-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  &__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  &__label {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  &__value {
+    color: var(--color-text-subtle);
+    font-size: var(--text-xs);
+  }
+}

@@ -1,0 +1,10 @@
+:host {
+  display: block;
+}
+
+.shape-properties__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  align-items: end;
+}

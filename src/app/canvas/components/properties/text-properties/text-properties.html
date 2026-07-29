@@ -1,0 +1,103 @@
+<app-panel-section title="Content">
+  <textarea
+    class="text-properties__content"
+    rows="3"
+    [value]="element().text"
+    [disabled]="disabled()"
+    (focus)="beginGesture()"
+    (blur)="endGesture()"
+    (input)="setText($any($event.target).value)"
+  ></textarea>
+</app-panel-section>
+
+<app-panel-section title="Typography">
+  <app-select-input
+    label="Font"
+    [value]="element().fontFamily"
+    [options]="fontFamilyOptions"
+    [disabled]="disabled()"
+    (valueChange)="setFontFamily($event)"
+  />
+
+  <div class="text-properties__row">
+    <app-select-input
+      label="Size"
+      [value]="element().fontSize + ''"
+      [options]="fontSizeOptions"
+      [disabled]="disabled()"
+      (valueChange)="setFontSize($event)"
+    />
+
+    <div class="text-properties__style">
+      <span class="text-properties__style-label">Style</span>
+      <div class="text-properties__style-group" role="group" aria-label="Font style">
+        <app-icon-button
+          icon="bold"
+          label="Bold"
+          variant="toggle"
+          [active]="isBold()"
+          [disabled]="disabled()"
+          (activated)="toggleBold()"
+        />
+        <app-icon-button
+          icon="italic"
+          label="Italic"
+          variant="toggle"
+          [active]="isItalic()"
+          [disabled]="disabled()"
+          (activated)="toggleItalic()"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="text-properties__align">
+    <span class="text-properties__style-label">Align</span>
+    <div class="text-properties__style-group" role="group" aria-label="Text alignment">
+      @for (option of alignOptions; track option.value) {
+        <app-icon-button
+          [icon]="option.icon"
+          [label]="'Align ' + option.value"
+          variant="toggle"
+          [active]="element().align === option.value"
+          [disabled]="disabled()"
+          (activated)="setAlign(option.value)"
+        />
+      }
+    </div>
+  </div>
+
+  <div class="text-properties__row">
+    <app-number-input
+      label="Letter spacing"
+      suffix="px"
+      [step]="0.5"
+      [value]="element().letterSpacing"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setLetterSpacing($event)"
+    />
+    <app-number-input
+      label="Line height"
+      [step]="0.1"
+      [min]="0.5"
+      [value]="element().lineHeight"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setLineHeight($event)"
+    />
+  </div>
+</app-panel-section>
+
+<app-panel-section title="Fill">
+  <app-color-input
+    label="Text colour"
+    [value]="element().fill"
+    [disabled]="disabled()"
+    (focusin)="beginGesture()"
+    (focusout)="endGesture()"
+    (valueChange)="setFill($event)"
+  />
+</app-panel-section>

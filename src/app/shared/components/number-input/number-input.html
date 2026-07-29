@@ -1,0 +1,18 @@
+<label class="number-input">
+  <span class="number-input__label">{{ label() }}</span>
+  <span class="number-input__field">
+    <input
+      type="number"
+      [class.has-suffix]="suffix()"
+      [value]="value()"
+      [attr.min]="min()"
+      [attr.max]="max()"
+      [attr.step]="step()"
+      [disabled]="disabled()"
+      (input)="onInput($any($event.target).value)"
+    />
+    @if (suffix()) {
+      <span class="number-input__suffix">{{ suffix() }}</span>
+    }
+  </span>
+</label>

@@ -1,0 +1,15 @@
+<label class="slider-input">
+  <span class="slider-input__row">
+    <span class="slider-input__label">{{ label() }}</span>
+    <span class="slider-input__value">{{ display() }}{{ suffix() }}</span>
+  </span>
+  <input
+    type="range"
+    [attr.min]="min()"
+    [attr.max]="max()"
+    [attr.step]="step()"
+    [value]="value()"
+    [disabled]="disabled()"
+    (input)="onInput($any($event.target).value)"
+  />
+</label>

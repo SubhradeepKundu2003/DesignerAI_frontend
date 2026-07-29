@@ -1,0 +1,20 @@
+<label class="color-input">
+  <span class="color-input__label">{{ label() }}</span>
+  <span class="color-input__field">
+    <input
+      type="color"
+      class="color-input__swatch"
+      [value]="swatchValue()"
+      [disabled]="disabled()"
+      (input)="onSwatch($any($event.target).value)"
+    />
+    <input
+      type="text"
+      class="color-input__hex"
+      spellcheck="false"
+      [value]="value()"
+      [disabled]="disabled()"
+      (change)="onHex($any($event.target).value)"
+    />
+  </span>
+</label>

@@ -1,0 +1,71 @@
+<app-panel-section title="Position &amp; size">
+  <div class="common-properties__row">
+    <app-number-input
+      label="X"
+      suffix="px"
+      [value]="element().x"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setX($event)"
+    />
+    <app-number-input
+      label="Y"
+      suffix="px"
+      [value]="element().y"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setY($event)"
+    />
+  </div>
+
+  <div class="common-properties__row">
+    <app-number-input
+      label="Width"
+      suffix="px"
+      [min]="1"
+      [value]="element().width"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setWidth($event)"
+    />
+    <app-number-input
+      label="Height"
+      suffix="px"
+      [min]="1"
+      [value]="element().height"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setHeight($event)"
+    />
+  </div>
+
+  <app-number-input
+    label="Rotation"
+    suffix="°"
+    [value]="element().rotation"
+    [disabled]="disabled()"
+    (focusin)="beginGesture()"
+    (focusout)="endGesture()"
+    (valueChange)="setRotation($event)"
+  />
+</app-panel-section>
+
+<app-panel-section title="Appearance">
+  <app-slider-input
+    label="Opacity"
+    suffix="%"
+    [min]="0"
+    [max]="1"
+    [step]="0.01"
+    [displayScale]="100"
+    [value]="element().opacity"
+    [disabled]="disabled()"
+    (focusin)="beginGesture()"
+    (focusout)="endGesture()"
+    (valueChange)="setOpacity($event)"
+  />
+</app-panel-section>

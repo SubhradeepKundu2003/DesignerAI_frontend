@@ -1,0 +1,12 @@
+<button
+  type="button"
+  class="icon-button"
+  [class.icon-button--active]="active()"
+  [disabled]="disabled()"
+  [title]="label()"
+  [attr.aria-label]="label()"
+  [attr.aria-pressed]="variant() === 'toggle' ? active() : null"
+  (click)="onClick()"
+>
+  <app-icon [name]="icon()" [size]="iconSize()" />
+</button>

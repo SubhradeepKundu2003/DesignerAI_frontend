@@ -1,0 +1,89 @@
+@use 'mixins' as mx;
+
+:host {
+  display: block;
+}
+
+.toolbar {
+  display: flex;
+  height: var(--toolbar-height);
+  align-items: center;
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  gap: var(--space-2);
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    padding-right: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  &__mark {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-md);
+    background: var(--color-accent);
+    color: var(--color-text-inverse);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    place-items: center;
+  }
+
+  &__title {
+    @include mx.truncate;
+
+    max-width: 220px;
+    font-size: var(--text-md);
+    font-weight: 500;
+  }
+
+  &__saved {
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    animation: toolbar-saved-fade 1.6s ease-out;
+  }
+
+  &__group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  &__divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 var(--space-2);
+    background: var(--color-border);
+  }
+
+  &__spacer {
+    flex: 1;
+  }
+
+  &__zoom {
+    min-width: 52px;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+}
+
+@keyframes toolbar-saved-fade {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

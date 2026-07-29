@@ -1,0 +1,68 @@
+@if (rows().length === 0) {
+  <p class="empty">Elements you add appear here.</p>
+} @else {
+  <ul class="layers">
+    @for (element of rows(); track element.id) {
+      <li
+        class="row"
+        [class.row--selected]="isSelected(element.id)"
+        [class.row--drop-target]="dropTargetId() === element.id"
+        (click)="select(element.id)"
+        (dragover)="onDragOver($event, element.id)"
+        (drop)="onDrop($event, element.id)"
+      >
+        <button
+          type="button"
+          class="row__handle"
+          draggable="true"
+          title="Drag to reorder"
+          aria-label="Reorder layer"
+          (dragstart)="onDragStart($event, element.id)"
+          (dragend)="onDragEnd()"
+        >
+          <app-icon name="grip" [size]="14" />
+        </button>
+
+        @if (renamingId() === element.id) {
+          <input
+            #renameInput
+            class="row__name-input"
+            [value]="element.name"
+            (blur)="commitRename(element, $any($event.target).value)"
+            (keydown)="onRenameKeydown($event)"
+            (click)="$event.stopPropagation()"
+          />
+        } @else {
+          <span
+            class="row__name"
+            [class.row__name--hidden]="!element.visible"
+            (dblclick)="startRename(element, $event)"
+          >
+            {{ element.name }}
+          </span>
+        }
+
+        <div class="row__actions">
+          <button
+            type="button"
+            class="row__action"
+            [title]="element.visible ? 'Hide layer' : 'Show layer'"
+            [attr.aria-label]="element.visible ? 'Hide layer' : 'Show layer'"
+            (click)="toggleVisible(element, $event)"
+          >
+            <app-icon [name]="element.visible ? 'eye' : 'eyeOff'" [size]="14" />
+          </button>
+          <button
+            type="button"
+            class="row__action"
+            [title]="element.locked ? 'Unlock layer' : 'Lock layer'"
+            [attr.aria-label]="element.locked ? 'Unlock layer' : 'Lock layer'"
+            (click)="toggleLocked(element, $event)"
+          >
+            <app-icon [name]="element.locked ? 'lock' : 'unlock'" [size]="14" />
+          </button>
+        </div>
+      </li>
+    }
+  </ul>
+}

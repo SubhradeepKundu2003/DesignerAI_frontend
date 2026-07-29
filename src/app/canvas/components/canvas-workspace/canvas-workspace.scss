@@ -1,0 +1,25 @@
+:host {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-workspace);
+  touch-action: none; // The workspace handles its own wheel and drag gestures.
+
+  &.is-panning {
+    cursor: grabbing;
+  }
+
+  &.is-pan-ready:not(.is-panning) {
+    cursor: grab;
+  }
+}
+
+.stage {
+  // Taken out of flow so the stage canvases, which are sized in script, can
+  // never feed their size back into the element the ResizeObserver watches.
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
