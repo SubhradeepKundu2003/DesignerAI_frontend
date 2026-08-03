@@ -9,6 +9,7 @@
   grid-template:
     'toolbar toolbar toolbar' var(--toolbar-height)
     'sidebar canvas  props' 1fr
+    'sidebar pages   props' var(--pages-height)
     'sidebar zoombar props' var(--zoombar-height)
     / var(--sidebar-width) 1fr var(--properties-width);
 
@@ -32,6 +33,11 @@
   &__properties {
     overflow: hidden;
     grid-area: props;
+  }
+
+  &__pages {
+    overflow: hidden;
+    grid-area: pages;
   }
 
   &__zoombar {

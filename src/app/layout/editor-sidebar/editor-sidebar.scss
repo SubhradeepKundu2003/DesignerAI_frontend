@@ -40,6 +40,37 @@
 
 }
 
+.tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &__tab {
+    @include mx.button-reset;
+    @include mx.focus-ring(-2px);
+
+    flex: 1;
+    padding: var(--space-3) 0;
+    border-bottom: 2px solid transparent;
+    color: var(--color-text-subtle);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-align: center;
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
+
+    &:hover {
+      color: var(--color-text);
+    }
+
+    &--active {
+      border-bottom-color: var(--color-accent);
+      color: var(--color-text);
+    }
+  }
+}
+
 .tools {
   display: grid;
   gap: var(--space-1);

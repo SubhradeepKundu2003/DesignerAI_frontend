@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
+import { CanvasStore } from '../../canvas/state/canvas.store';
 import { ViewportStore } from '../../canvas/state/viewport.store';
 import { IconButton } from '../../shared/components/icon-button/icon-button';
 
@@ -12,11 +13,19 @@ import { IconButton } from '../../shared/components/icon-button/icon-button';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ZoomControls {
+  private readonly canvas = inject(CanvasStore);
   private readonly viewport = inject(ViewportStore);
 
   protected readonly zoomPercent = this.viewport.zoomPercent;
   protected readonly canZoomIn = this.viewport.canZoomIn;
   protected readonly canZoomOut = this.viewport.canZoomOut;
+
+  protected readonly pageLabel = computed(() => {
+    const page = this.canvas.activePage();
+    const position = `Page ${this.canvas.activePageIndex() + 1} of ${this.canvas.pageCount()}`;
+    const named = page.name && page.name !== `Page ${this.canvas.activePageIndex() + 1}`;
+    return `${named ? `${page.name} · ` : ''}${position} · A4 portrait`;
+  });
 
   protected zoomIn(): void {
     this.viewport.zoomIn();

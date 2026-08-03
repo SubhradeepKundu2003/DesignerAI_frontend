@@ -110,4 +110,88 @@ describe('CanvasStore', () => {
     expect(ids()).toEqual([kept.id]);
     expect(store.elementById(removed.id)).toBeUndefined();
   });
+
+  describe('pages', () => {
+    it('should add a page and switch to it', () => {
+      const firstPageId = store.activePage().id;
+
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.setActivePage('page-2');
+
+      expect(store.pageCount()).toBe(2);
+      expect(store.activePage().id).toBe('page-2');
+      expect(store.activePageIndex()).toBe(1);
+
+      store.setActivePage(firstPageId);
+      expect(store.activePage().id).toBe(firstPageId);
+    });
+
+    it('should scope elements to the page they were inserted on', () => {
+      const firstPageId = store.activePage().id;
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+
+      const onFirstPage = shapeElement();
+      store.insertElement(onFirstPage);
+
+      store.setActivePage('page-2');
+      expect(store.elements()).toEqual([]);
+
+      const onSecondPage = shapeElement();
+      store.insertElement(onSecondPage);
+      expect(store.elements()).toEqual([onSecondPage]);
+
+      store.setActivePage(firstPageId);
+      expect(store.elements()).toEqual([onFirstPage]);
+    });
+
+    it('should keep element mutators correct after switching pages, for undo', () => {
+      const firstPageId = store.activePage().id;
+      const element = shapeElement();
+      store.insertElement(element);
+
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.setActivePage('page-2');
+
+      // Simulates an undo firing while a different page is now active: the
+      // mutator must still find the element on its own page, not silently
+      // no-op against the (now active) empty page.
+      store.patchElement(element.id, { x: 500 });
+      expect(store.elementById(element.id)?.x).toBe(500);
+
+      store.removeElement(element.id);
+      expect(store.elementById(element.id)).toBeUndefined();
+
+      store.setActivePage(firstPageId);
+      expect(store.elements()).toEqual([]);
+    });
+
+    it('should refuse to remove the last page', () => {
+      store.removePage(store.activePage().id);
+      expect(store.pageCount()).toBe(1);
+    });
+
+    it('should fall back to a neighbouring page when the active page is removed', () => {
+      const firstPageId = store.activePage().id;
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.setActivePage('page-2');
+
+      store.removePage('page-2');
+
+      expect(store.pageCount()).toBe(1);
+      expect(store.activePage().id).toBe(firstPageId);
+    });
+
+    it('should keep the active page identity stable when a page before it is reordered or removed', () => {
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.insertPage({ id: 'page-3', name: 'Page 3', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.setActivePage('page-3');
+
+      store.movePage('page-2', 2);
+      expect(store.activePage().id).toBe('page-3');
+
+      store.removePage('page-2');
+      expect(store.activePage().id).toBe('page-3');
+      expect(store.pageCount()).toBe(2);
+    });
+  });
 });

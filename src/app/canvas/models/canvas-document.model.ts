@@ -14,6 +14,8 @@ export interface CanvasDocument {
 
 export interface Page {
   readonly id: string;
+  /** Shown in the page navigator; falls back to a positional label when unset. */
+  name?: string;
   /** Page size in px at 96 dpi (A4 portrait by default). */
   width: number;
   height: number;

@@ -21,6 +21,12 @@ export class ImageUploadService {
     const natural = await probeSize(src);
     return { src, natural };
   }
+
+  /** Same result as {@link load}, for a URL that already exists (e.g. an asset). */
+  async loadFromUrl(src: string): Promise<UploadedImage> {
+    const natural = await probeSize(src);
+    return { src, natural };
+  }
 }
 
 function readAsDataUrl(file: File): Promise<string> {

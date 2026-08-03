@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
 import { CanvasWorkspace } from '../../canvas/components/canvas-workspace/canvas-workspace';
+import { PageNavigator } from '../../canvas/components/page-navigator/page-navigator';
 import { KeyboardShortcuts } from '../../canvas/services/keyboard-shortcuts.service';
 import { EditorSidebar } from '../editor-sidebar/editor-sidebar';
 import { EditorToolbar } from '../editor-toolbar/editor-toolbar';
@@ -17,7 +18,14 @@ import { ZoomControls } from '../zoom-controls/zoom-controls';
  */
 @Component({
   selector: 'app-editor-shell',
-  imports: [EditorToolbar, EditorSidebar, CanvasWorkspace, PropertiesPanel, ZoomControls],
+  imports: [
+    EditorToolbar,
+    EditorSidebar,
+    CanvasWorkspace,
+    PropertiesPanel,
+    PageNavigator,
+    ZoomControls,
+  ],
   templateUrl: './editor-shell.html',
   styleUrl: './editor-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,0 +1,31 @@
+<div class="assets">
+  <input
+    class="assets__search"
+    type="text"
+    placeholder="Search infographics…"
+    aria-label="Search infographics"
+    [value]="query()"
+    (input)="query.set($any($event.target).value)"
+  />
+
+  @if (assets().length === 0) {
+    <p class="assets__empty">No infographics match "{{ query() }}".</p>
+  } @else {
+    <ul class="grid">
+      @for (asset of assets(); track asset.id) {
+        <li>
+          <button
+            type="button"
+            class="tile"
+            [disabled]="placingId() === asset.id"
+            [title]="asset.label"
+            (click)="place(asset)"
+          >
+            <img class="tile__image" [src]="asset.file" [alt]="asset.label" loading="lazy" />
+            <span class="tile__label">{{ asset.label }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

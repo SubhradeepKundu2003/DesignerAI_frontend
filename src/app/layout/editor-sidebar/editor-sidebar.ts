@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, ElementRef, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 
 import { AddElementCommand } from '../../canvas/commands/add-element.command';
 import { CommandBus } from '../../canvas/commands/command-bus.service';
+import { AssetsPanel } from '../../canvas/components/assets-panel/assets-panel';
 import { LayersPanel } from '../../canvas/components/layers-panel/layers-panel';
 import { ElementFactory, InsertKind } from '../../canvas/services/element-factory.service';
 import { ImageUploadService } from '../../canvas/services/image-upload.service';
@@ -16,6 +17,8 @@ interface InsertTool {
   readonly label: string;
 }
 
+type SidebarTab = 'design' | 'assets';
+
 /**
  * Left sidebar: the insert tools and the layer list.
  *
@@ -24,7 +27,7 @@ interface InsertTool {
  */
 @Component({
   selector: 'app-editor-sidebar',
-  imports: [AppIcon, LayersPanel],
+  imports: [AppIcon, LayersPanel, AssetsPanel],
   templateUrl: './editor-sidebar.html',
   styleUrl: './editor-sidebar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -37,6 +40,8 @@ export class EditorSidebar {
   private readonly uploads = inject(ImageUploadService);
 
   private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
+
+  protected readonly tab = signal<SidebarTab>('design');
 
   protected readonly tools: readonly InsertTool[] = [
     { kind: 'text', icon: 'text', label: 'Text' },

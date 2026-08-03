@@ -1,30 +1,59 @@
 <nav class="sidebar" aria-label="Editor tools">
-  <section class="sidebar__section">
-    <h2 class="sidebar__heading">Insert</h2>
-    <ul class="tools">
-      @for (tool of tools; track tool.kind) {
-        <li>
-          <button type="button" class="tool" (click)="insert(tool.kind)">
-            <app-icon [name]="tool.icon" [size]="18" />
-            <span class="tool__label">{{ tool.label }}</span>
-          </button>
-        </li>
-      }
-      <li>
-        <button type="button" class="tool" (click)="chooseImage()">
-          <app-icon name="upload" [size]="18" />
-          <span class="tool__label">Image</span>
-        </button>
-        <input #fileInput type="file" accept="image/*" hidden (change)="onImageSelected($event)" />
-      </li>
-    </ul>
-  </section>
+  <div class="tabs" role="tablist" aria-label="Sidebar panel">
+    <button
+      type="button"
+      class="tabs__tab"
+      role="tab"
+      [class.tabs__tab--active]="tab() === 'design'"
+      [attr.aria-selected]="tab() === 'design'"
+      (click)="tab.set('design')"
+    >
+      Design
+    </button>
+    <button
+      type="button"
+      class="tabs__tab"
+      role="tab"
+      [class.tabs__tab--active]="tab() === 'assets'"
+      [attr.aria-selected]="tab() === 'assets'"
+      (click)="tab.set('assets')"
+    >
+      Assets
+    </button>
+  </div>
 
-  <section class="sidebar__section sidebar__section--fill">
-    <h2 class="sidebar__heading">
-      <app-icon name="layers" [size]="13" />
-      Layers
-    </h2>
-    <app-layers-panel />
-  </section>
+  @if (tab() === 'design') {
+    <section class="sidebar__section">
+      <h2 class="sidebar__heading">Insert</h2>
+      <ul class="tools">
+        @for (tool of tools; track tool.kind) {
+          <li>
+            <button type="button" class="tool" (click)="insert(tool.kind)">
+              <app-icon [name]="tool.icon" [size]="18" />
+              <span class="tool__label">{{ tool.label }}</span>
+            </button>
+          </li>
+        }
+        <li>
+          <button type="button" class="tool" (click)="chooseImage()">
+            <app-icon name="upload" [size]="18" />
+            <span class="tool__label">Image</span>
+          </button>
+          <input #fileInput type="file" accept="image/*" hidden (change)="onImageSelected($event)" />
+        </li>
+      </ul>
+    </section>
+
+    <section class="sidebar__section sidebar__section--fill">
+      <h2 class="sidebar__heading">
+        <app-icon name="layers" [size]="13" />
+        Layers
+      </h2>
+      <app-layers-panel />
+    </section>
+  } @else {
+    <section class="sidebar__section sidebar__section--fill">
+      <app-assets-panel />
+    </section>
+  }
 </nav>

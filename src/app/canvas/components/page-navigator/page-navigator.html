@@ -1,0 +1,73 @@
+<div class="navigator" role="tablist" aria-label="Pages">
+  <ul class="strip">
+    @for (page of pages(); track page.id; let index = $index) {
+      <li
+        class="page"
+        role="tab"
+        [class.page--active]="page.id === activeId()"
+        [class.page--drop-target]="dropTargetId() === page.id"
+        [attr.aria-selected]="page.id === activeId()"
+        draggable="true"
+        (click)="select(page.id)"
+        (dragstart)="onDragStart($event, page.id)"
+        (dragover)="onDragOver($event, page.id)"
+        (drop)="onDrop($event, page.id)"
+        (dragend)="onDragEnd()"
+      >
+        <div class="page__thumb" [style.aspectRatio]="page.width + ' / ' + page.height">
+          <div class="page__sheet" [style.background]="page.background">
+            @for (swatch of swatches(page); track swatch.id) {
+              @if (swatch.image) {
+                <img class="page__swatch page__swatch--image" [ngStyle]="swatch.style" [src]="swatch.image" alt="" />
+              } @else {
+                <div class="page__swatch" [ngStyle]="swatch.style"></div>
+              }
+            }
+          </div>
+        </div>
+
+        <div class="page__footer">
+          @if (renamingId() === page.id) {
+            <input
+              #renameInput
+              class="page__name-input"
+              [value]="label(page, index)"
+              (blur)="commitRename(page, index, $any($event.target).value)"
+              (keydown)="onRenameKeydown($event, page)"
+              (click)="$event.stopPropagation()"
+            />
+          } @else {
+            <span class="page__name" (dblclick)="startRename(page, $event)">{{ label(page, index) }}</span>
+          }
+        </div>
+
+        <div class="page__actions">
+          <button
+            type="button"
+            class="page__action"
+            title="Duplicate page"
+            aria-label="Duplicate page"
+            (click)="duplicatePage(page, $event)"
+          >
+            <app-icon name="duplicate" [size]="12" />
+          </button>
+          @if (canDelete()) {
+            <button
+              type="button"
+              class="page__action"
+              title="Delete page"
+              aria-label="Delete page"
+              (click)="deletePage(page, $event)"
+            >
+              <app-icon name="trash" [size]="12" />
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+
+  <button type="button" class="add" title="Add page" aria-label="Add page" (click)="addPage()">
+    <app-icon name="plus" [size]="16" />
+  </button>
+</div>
