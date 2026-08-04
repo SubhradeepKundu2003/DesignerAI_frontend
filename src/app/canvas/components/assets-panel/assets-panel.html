@@ -8,24 +8,46 @@
     (input)="query.set($any($event.target).value)"
   />
 
-  @if (assets().length === 0) {
-    <p class="assets__empty">No infographics match "{{ query() }}".</p>
-  } @else {
-    <ul class="grid">
-      @for (asset of assets(); track asset.id) {
-        <li>
-          <button
-            type="button"
-            class="tile"
-            [disabled]="placingId() === asset.id"
-            [title]="asset.label"
-            (click)="place(asset)"
-          >
-            <img class="tile__image" [src]="asset.file" [alt]="asset.label" loading="lazy" />
-            <span class="tile__label">{{ asset.label }}</span>
-          </button>
-        </li>
-      }
-    </ul>
+  @if (templates().length > 0) {
+    <section class="assets__section">
+      <h3 class="assets__heading">Templates</h3>
+      <p class="assets__hint">Editable layouts — text stays selectable after placing.</p>
+      <ul class="grid">
+        @for (template of templates(); track template.id) {
+          <li>
+            <button type="button" class="tile" [title]="template.label" (click)="placeTemplate(template)">
+              <img class="tile__image" [src]="template.thumbnail" [alt]="template.label" loading="lazy" />
+              <span class="tile__label">{{ template.label }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (assets().length > 0) {
+    <section class="assets__section">
+      <h3 class="assets__heading">Images</h3>
+      <ul class="grid">
+        @for (asset of assets(); track asset.id) {
+          <li>
+            <button
+              type="button"
+              class="tile"
+              [disabled]="placingId() === asset.id"
+              [title]="asset.label"
+              (click)="place(asset)"
+            >
+              <img class="tile__image" [src]="asset.file" [alt]="asset.label" loading="lazy" />
+              <span class="tile__label">{{ asset.label }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (templates().length === 0 && assets().length === 0) {
+    <p class="assets__empty">Nothing matches "{{ query() }}".</p>
   }
 </div>
