@@ -1,0 +1,30 @@
+<app-panel-section title="Group">
+  <p class="group-properties__count">
+    {{ group().childIds.length }} element{{ group().childIds.length === 1 ? '' : 's' }}
+  </p>
+
+  <div class="group-properties__row">
+    <app-number-input label="X" suffix="px" [value]="group().x" [disabled]="true" />
+    <app-number-input label="Y" suffix="px" [value]="group().y" [disabled]="true" />
+  </div>
+  <div class="group-properties__row">
+    <app-number-input label="Width" suffix="px" [value]="group().width" [disabled]="true" />
+    <app-number-input label="Height" suffix="px" [value]="group().height" [disabled]="true" />
+  </div>
+
+  <div class="group-properties__row">
+    <button type="button" class="group-properties__toggle" (click)="toggleVisible()">
+      <app-icon [name]="group().visible ? 'eye' : 'eyeOff'" [size]="14" />
+      {{ group().visible ? 'Visible' : 'Hidden' }}
+    </button>
+    <button type="button" class="group-properties__toggle" (click)="toggleLocked()">
+      <app-icon [name]="group().locked ? 'lock' : 'unlock'" [size]="14" />
+      {{ group().locked ? 'Locked' : 'Unlocked' }}
+    </button>
+  </div>
+
+  <button type="button" class="group-properties__ungroup" (click)="ungroup()">
+    <app-icon name="ungroup" [size]="14" />
+    Ungroup
+  </button>
+</app-panel-section>

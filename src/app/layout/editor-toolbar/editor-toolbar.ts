@@ -33,6 +33,8 @@ export class EditorToolbar {
   protected readonly canDuplicate = this.actions.canDuplicate;
   protected readonly canBringForward = this.actions.canBringForward;
   protected readonly canSendBackward = this.actions.canSendBackward;
+  protected readonly canGroup = this.actions.canGroup;
+  protected readonly canUngroup = this.actions.canUngroup;
 
   protected readonly canLoad = this.persistence.hasSave;
   protected readonly justSaved = this.persistence.justSaved;
@@ -63,6 +65,14 @@ export class EditorToolbar {
 
   protected sendBackward(): void {
     this.actions.sendBackward();
+  }
+
+  protected group(): void {
+    this.actions.groupSelection();
+  }
+
+  protected ungroup(): void {
+    this.actions.ungroupSelection();
   }
 
   protected toggleGrid(): void {

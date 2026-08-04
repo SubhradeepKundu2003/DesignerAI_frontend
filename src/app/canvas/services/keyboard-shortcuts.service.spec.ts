@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { shapeElement } from '../../../testing/canvas-fixtures';
+import { groupElement, shapeElement } from '../../../testing/canvas-fixtures';
 import { AddElementCommand } from '../commands/add-element.command';
 import { CommandBus } from '../commands/command-bus.service';
 import { CanvasStore } from '../state/canvas.store';
@@ -97,6 +97,35 @@ describe('KeyboardShortcuts', () => {
     shortcuts.handleKeydown(keyEvent({ key: 'Escape' }));
 
     expect(selection.selectedIds()).toEqual([]);
+  });
+
+  it('should exit an entered group on Escape', () => {
+    const a = shapeElement();
+    const b = shapeElement();
+    canvas.insertElement(a);
+    canvas.insertElement(b);
+    canvas.groupElements(groupElement({ id: 'g1', childIds: [a.id, b.id] }), [a.id, b.id]);
+    selection.enterGroup('g1');
+
+    shortcuts.handleKeydown(keyEvent({ key: 'Escape' }));
+
+    expect(selection.enteredGroupId()).toBeNull();
+  });
+
+  it('should group the selection on Ctrl+G and ungroup on Ctrl+Shift+G', () => {
+    const a = shapeElement();
+    const b = shapeElement();
+    canvas.insertElement(a);
+    canvas.insertElement(b);
+    selection.selectMany([a.id, b.id]);
+
+    shortcuts.handleKeydown(keyEvent({ key: 'g', ctrlKey: true }));
+    expect(canvas.elementById(a.id)?.parentId).toBeDefined();
+    const groupId = canvas.elementById(a.id)!.parentId!;
+
+    shortcuts.handleKeydown(keyEvent({ key: 'g', ctrlKey: true, shiftKey: true }));
+    expect(canvas.elementById(a.id)?.parentId).toBeUndefined();
+    expect(canvas.groupById(groupId)).toBeUndefined();
   });
 
   it('should nudge the selection with the arrow keys, and further with Shift', () => {

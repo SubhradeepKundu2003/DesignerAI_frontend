@@ -2,67 +2,129 @@
   <p class="empty">Elements you add appear here.</p>
 } @else {
   <ul class="layers">
-    @for (element of rows(); track element.id) {
-      <li
-        class="row"
-        [class.row--selected]="isSelected(element.id)"
-        [class.row--drop-target]="dropTargetId() === element.id"
-        (click)="select(element.id)"
-        (dragover)="onDragOver($event, element.id)"
-        (drop)="onDrop($event, element.id)"
-      >
-        <button
-          type="button"
-          class="row__handle"
-          draggable="true"
-          title="Drag to reorder"
-          aria-label="Reorder layer"
-          (dragstart)="onDragStart($event, element.id)"
-          (dragend)="onDragEnd()"
+    @for (row of rows(); track row.kind === 'group' ? row.group.id : row.element.id) {
+      @if (row.kind === 'group') {
+        <li
+          class="row row--group"
+          [class.row--selected]="isSelected(row.group.id)"
+          [class.row--entered]="isEntered(row.group.id)"
+          (click)="select(row.group.id)"
         >
-          <app-icon name="grip" [size]="14" />
-        </button>
-
-        @if (renamingId() === element.id) {
-          <input
-            #renameInput
-            class="row__name-input"
-            [value]="element.name"
-            (blur)="commitRename(element, $any($event.target).value)"
-            (keydown)="onRenameKeydown($event)"
-            (click)="$event.stopPropagation()"
-          />
-        } @else {
-          <span
-            class="row__name"
-            [class.row__name--hidden]="!element.visible"
-            (dblclick)="startRename(element, $event)"
-          >
-            {{ element.name }}
-          </span>
-        }
-
-        <div class="row__actions">
           <button
             type="button"
-            class="row__action"
-            [title]="element.visible ? 'Hide layer' : 'Show layer'"
-            [attr.aria-label]="element.visible ? 'Hide layer' : 'Show layer'"
-            (click)="toggleVisible(element, $event)"
+            class="row__collapse"
+            [class.row__collapse--collapsed]="isCollapsed(row.group.id)"
+            [title]="isCollapsed(row.group.id) ? 'Expand group' : 'Collapse group'"
+            [attr.aria-label]="isCollapsed(row.group.id) ? 'Expand group' : 'Collapse group'"
+            (click)="toggleCollapsed(row.group.id, $event)"
           >
-            <app-icon [name]="element.visible ? 'eye' : 'eyeOff'" [size]="14" />
+            <app-icon name="chevronDown" [size]="12" />
           </button>
+
+          @if (renamingId() === row.group.id) {
+            <input
+              #renameInput
+              class="row__name-input"
+              [value]="row.group.name"
+              (blur)="commitRename(row.group.id, row.group.name, $any($event.target).value)"
+              (keydown)="onRenameKeydown($event)"
+              (click)="$event.stopPropagation()"
+            />
+          } @else {
+            <span
+              class="row__name"
+              [class.row__name--hidden]="!row.group.visible"
+              (dblclick)="startRename(row.group.id, row.group.locked, $event)"
+            >
+              {{ row.group.name }}
+            </span>
+          }
+
+          <div class="row__actions">
+            <button
+              type="button"
+              class="row__action"
+              [title]="row.group.visible ? 'Hide group' : 'Show group'"
+              [attr.aria-label]="row.group.visible ? 'Hide group' : 'Show group'"
+              (click)="toggleGroupVisible(row.group, $event)"
+            >
+              <app-icon [name]="row.group.visible ? 'eye' : 'eyeOff'" [size]="14" />
+            </button>
+            <button
+              type="button"
+              class="row__action"
+              [title]="row.group.locked ? 'Unlock group' : 'Lock group'"
+              [attr.aria-label]="row.group.locked ? 'Unlock group' : 'Lock group'"
+              (click)="toggleGroupLocked(row.group, $event)"
+            >
+              <app-icon [name]="row.group.locked ? 'lock' : 'unlock'" [size]="14" />
+            </button>
+          </div>
+        </li>
+      } @else {
+        <li
+          class="row"
+          [class.row--indent]="row.depth === 1"
+          [class.row--selected]="isSelected(row.element.id)"
+          [class.row--drop-target]="dropTargetId() === row.element.id"
+          (click)="select(row.element.id)"
+          (dragover)="onDragOver($event, row)"
+          (drop)="onDrop($event, row)"
+        >
           <button
             type="button"
-            class="row__action"
-            [title]="element.locked ? 'Unlock layer' : 'Lock layer'"
-            [attr.aria-label]="element.locked ? 'Unlock layer' : 'Lock layer'"
-            (click)="toggleLocked(element, $event)"
+            class="row__handle"
+            [class.row__handle--static]="!canReorder(row)"
+            [draggable]="canReorder(row)"
+            title="Drag to reorder"
+            aria-label="Reorder layer"
+            (dragstart)="onDragStart($event, row)"
+            (dragend)="onDragEnd()"
           >
-            <app-icon [name]="element.locked ? 'lock' : 'unlock'" [size]="14" />
+            <app-icon name="grip" [size]="14" />
           </button>
-        </div>
-      </li>
+
+          @if (renamingId() === row.element.id) {
+            <input
+              #renameInput
+              class="row__name-input"
+              [value]="row.element.name"
+              (blur)="commitRename(row.element.id, row.element.name, $any($event.target).value)"
+              (keydown)="onRenameKeydown($event)"
+              (click)="$event.stopPropagation()"
+            />
+          } @else {
+            <span
+              class="row__name"
+              [class.row__name--hidden]="!row.element.visible"
+              (dblclick)="startRename(row.element.id, row.element.locked, $event)"
+            >
+              {{ row.element.name }}
+            </span>
+          }
+
+          <div class="row__actions">
+            <button
+              type="button"
+              class="row__action"
+              [title]="row.element.visible ? 'Hide layer' : 'Show layer'"
+              [attr.aria-label]="row.element.visible ? 'Hide layer' : 'Show layer'"
+              (click)="toggleVisible(row.element, $event)"
+            >
+              <app-icon [name]="row.element.visible ? 'eye' : 'eyeOff'" [size]="14" />
+            </button>
+            <button
+              type="button"
+              class="row__action"
+              [title]="row.element.locked ? 'Unlock layer' : 'Lock layer'"
+              [attr.aria-label]="row.element.locked ? 'Unlock layer' : 'Lock layer'"
+              (click)="toggleLocked(row.element, $event)"
+            >
+              <app-icon [name]="row.element.locked ? 'lock' : 'unlock'" [size]="14" />
+            </button>
+          </div>
+        </li>
+      }
     }
   </ul>
 }

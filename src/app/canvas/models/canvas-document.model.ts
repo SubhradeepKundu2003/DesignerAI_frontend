@@ -1,4 +1,4 @@
-import { CanvasElement } from './canvas-element.model';
+import { CanvasElement, GroupElement } from './canvas-element.model';
 
 /**
  * The Canvas JSON document — the single source of truth for the editor.
@@ -26,6 +26,13 @@ export interface Page {
    * separate `layer` field to keep out of sync with it.
    */
   elements: CanvasElement[];
+  /**
+   * Groups on this page. Grouping does not nest or reorder elements in Konva —
+   * it only tags members with a `parentId` and keeps them contiguous within
+   * `elements`, so a document saved before groups existed loads fine with this
+   * read as `page.groups ?? []` rather than requiring a migration.
+   */
+  groups: GroupElement[];
 }
 
 export const CANVAS_DOCUMENT_VERSION = 1 as const;

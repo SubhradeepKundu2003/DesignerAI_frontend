@@ -63,6 +63,16 @@ export class KeyboardShortcuts {
       return;
     }
 
+    if (withModifier && event.key.toLowerCase() === 'g') {
+      event.preventDefault();
+      if (event.shiftKey) {
+        this.actions.ungroupSelection();
+      } else {
+        this.actions.groupSelection();
+      }
+      return;
+    }
+
     if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
       this.actions.deleteSelection();
@@ -71,6 +81,7 @@ export class KeyboardShortcuts {
 
     if (event.key === 'Escape') {
       this.selection.clear();
+      this.selection.exitGroup();
       return;
     }
 

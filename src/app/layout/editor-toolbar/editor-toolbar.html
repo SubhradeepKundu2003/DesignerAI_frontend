@@ -43,6 +43,18 @@
 
   <span class="toolbar__divider" role="separator"></span>
 
+  <div class="toolbar__group" role="group" aria-label="Grouping">
+    <app-icon-button icon="group" label="Group" [disabled]="!canGroup()" (activated)="group()" />
+    <app-icon-button
+      icon="ungroup"
+      label="Ungroup"
+      [disabled]="!canUngroup()"
+      (activated)="ungroup()"
+    />
+  </div>
+
+  <span class="toolbar__divider" role="separator"></span>
+
   <div class="toolbar__group" role="group" aria-label="Arrange">
     <app-icon-button
       icon="bringForward"

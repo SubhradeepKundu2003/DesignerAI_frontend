@@ -25,17 +25,34 @@ export class PageFactory {
       height: PAGE_SIZE.height,
       background: PAGE_BACKGROUND,
       elements: [],
+      groups: [],
     };
   }
 
-  /** Copies `page`: a new id for it and for every element on it, and a fresh name. */
+  /**
+   * Copies `page`: a new id for it, for every element on it, and for every
+   * group — `parentId`/`childIds` are remapped through the same id swap so
+   * groups on the copy point at the copy's own elements, not the original's.
+   */
   duplicate(page: Page): Page {
     const copy = structuredClone(page) as Page;
+    const elementIds = new Map(copy.elements.map((element) => [element.id, generateId()]));
+    const groupIds = new Map((copy.groups ?? []).map((group) => [group.id, generateId('group')]));
+
     return {
       ...copy,
       id: generateId('page'),
       name: this.nextName(),
-      elements: copy.elements.map((element) => ({ ...element, id: generateId() })),
+      elements: copy.elements.map((element) => ({
+        ...element,
+        id: elementIds.get(element.id)!,
+        parentId: element.parentId ? groupIds.get(element.parentId) : undefined,
+      })),
+      groups: (copy.groups ?? []).map((group) => ({
+        ...group,
+        id: groupIds.get(group.id)!,
+        childIds: group.childIds.map((id) => elementIds.get(id)!),
+      })),
     };
   }
 

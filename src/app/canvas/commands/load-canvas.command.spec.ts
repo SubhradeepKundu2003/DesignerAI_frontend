@@ -27,6 +27,7 @@ describe('LoadCanvasCommand', () => {
           height: 1123,
           background: '#ffffff',
           elements: [shapeElement({ name: 'Loaded shape' })],
+          groups: [],
         },
       ],
     };

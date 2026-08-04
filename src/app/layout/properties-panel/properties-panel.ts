@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 
 import { CommonProperties } from '../../canvas/components/properties/common-properties/common-properties';
 import { DividerProperties } from '../../canvas/components/properties/divider-properties/divider-properties';
+import { GroupProperties } from '../../canvas/components/properties/group-properties/group-properties';
 import { ImageProperties } from '../../canvas/components/properties/image-properties/image-properties';
 import { ShapeProperties } from '../../canvas/components/properties/shape-properties/shape-properties';
 import { TextProperties } from '../../canvas/components/properties/text-properties/text-properties';
@@ -26,6 +27,7 @@ import { AppIcon } from '../../shared/components/app-icon/app-icon';
     ShapeProperties,
     DividerProperties,
     ImageProperties,
+    GroupProperties,
   ],
   templateUrl: './properties-panel.html',
   styleUrl: './properties-panel.scss',
@@ -34,6 +36,7 @@ import { AppIcon } from '../../shared/components/app-icon/app-icon';
 export class PropertiesPanel {
   private readonly selection = inject(SelectionStore);
 
+  protected readonly group = this.selection.primaryGroup;
   protected readonly element = this.selection.primary;
   protected readonly disabled = computed(() => this.element()?.locked ?? false);
 

@@ -3,8 +3,10 @@ import Konva from 'konva/lib/Core';
 import { Text } from 'konva/lib/shapes/Text';
 import { Transformer } from 'konva/lib/shapes/Transformer';
 
+import { CompositeCommand } from '../commands/composite.command';
 import { UpdateElementCommand } from '../commands/update-element.command';
 import { CanvasElement, ElementPatch } from '../models/canvas-element.model';
+import { Command } from '../models/commands.model';
 import { CommandBus } from '../commands/command-bus.service';
 import { GRID_SIZE, PAGE_MARGIN, SNAP_THRESHOLD } from '../models/editor-config';
 import { ElementNode } from '../renderers/element-renderer';
@@ -49,6 +51,15 @@ export class CanvasInteractions implements OnDestroy {
   private content: Konva.Layer | null = null;
   private transformer: Transformer | null = null;
 
+  /**
+   * Every node moving as part of the drag gesture in progress, with the
+   * position each held when the gesture started. Konva only natively drags
+   * the node under the pointer — this is what makes the rest of a
+   * multi-selection (or a group's members) follow along and land in one
+   * `commitDrag`, instead of only the grabbed node actually moving.
+   */
+  private readonly dragOrigin = new Map<ElementNode, { x: number; y: number }>();
+
   attach(stage: Konva.Stage, content: Konva.Layer, transformer: Transformer): void {
     this.detach();
 
@@ -61,6 +72,7 @@ export class CanvasInteractions implements OnDestroy {
     stage.on(`pointerdown${NS}`, (event) => {
       if (event.target === stage && !this.isPanGesture(event.evt)) {
         this.selection.clear();
+        this.selection.exitGroup();
       }
     });
 
@@ -69,8 +81,8 @@ export class CanvasInteractions implements OnDestroy {
     content.on(`pointerdown${NS}`, (event) => this.onElementPointerDown(event));
     content.on(`dragstart${NS}`, (event) => this.onDragStart(event));
     content.on(`dragmove${NS}`, (event) => this.onDragMove(event.target as ElementNode));
-    content.on(`dragend${NS}`, (event) => {
-      this.commitDrag(event.target as ElementNode);
+    content.on(`dragend${NS}`, () => {
+      this.commitDrag();
       this.guides.clear();
     });
     content.on(`dblclick${NS}`, (event) => this.onElementDoubleClick(event));
@@ -90,10 +102,25 @@ export class CanvasInteractions implements OnDestroy {
     this.detach();
   }
 
+  /**
+   * Resolves a click to what it should actually select: a group, unless the
+   * user has double-clicked into it, in which case a click on one of its
+   * members selects that member directly. Clicking anything outside the
+   * entered group — including empty paper, handled above — leaves it.
+   */
   private onElementPointerDown(event: Konva.KonvaEventObject<PointerEvent>): void {
-    const id = event.target.id();
-    if (!id || this.isPanGesture(event.evt)) {
+    const rawId = event.target.id();
+    if (!rawId || this.isPanGesture(event.evt)) {
       return;
+    }
+
+    const element = this.canvas.elementById(rawId);
+    const entered = this.selection.enteredGroupId();
+    const insideEntered = !!element?.parentId && element.parentId === entered;
+    const id = insideEntered ? rawId : this.canvas.topLevelIdOf(rawId);
+
+    if (entered && !insideEntered) {
+      this.selection.exitGroup();
     }
 
     if (event.evt.shiftKey) {
@@ -103,11 +130,25 @@ export class CanvasInteractions implements OnDestroy {
     }
   }
 
-  /** A double-click on a text box opens it in the textarea overlay. */
+  /**
+   * A double-click on a grouped element enters its group and selects that
+   * member directly, instead of the whole group. A double-click on a text
+   * box also opens it in the textarea overlay — for grouped text this lands
+   * in the same gesture as entering, rather than requiring a second one.
+   */
   private onElementDoubleClick(event: Konva.KonvaEventObject<MouseEvent>): void {
     const id = event.target.id();
     const element = this.canvas.elementById(id);
-    if (!element || element.type !== 'text' || element.locked) {
+    if (!element || element.locked) {
+      return;
+    }
+
+    if (element.parentId && this.selection.enteredGroupId() !== element.parentId) {
+      this.selection.enterGroup(element.parentId);
+      this.selection.select(id);
+    }
+
+    if (element.type !== 'text') {
       return;
     }
 
@@ -120,6 +161,12 @@ export class CanvasInteractions implements OnDestroy {
     // workspace; the element under the cursor must not come along for the ride.
     if (this.isPanGesture(event.evt)) {
       (event.target as ElementNode).stopDrag();
+      return;
+    }
+
+    this.dragOrigin.clear();
+    for (const node of (this.transformer?.nodes() ?? []) as ElementNode[]) {
+      this.dragOrigin.set(node, { x: node.x(), y: node.y() });
     }
   }
 
@@ -128,60 +175,97 @@ export class CanvasInteractions implements OnDestroy {
    * guide offers, and shows the guides that matched. Konva has already moved
    * the node to the raw pointer position by the time this fires; overriding
    * it here is the sanctioned way to snap a native drag without fighting it.
+   * Every other node captured at drag-start then follows by the same delta.
    */
   private onDragMove(node: ElementNode): void {
-    const element = this.canvas.elementById(node.id());
-    const settings = this.settings.settings();
-    if (!element || (!settings.snapEnabled && !settings.guidesVisible)) {
-      return;
-    }
-
-    const page = this.canvas.activePage();
-    const others = this.canvas
-      .elements()
-      .filter((candidate) => candidate.id !== element.id && candidate.visible);
-
-    const result = this.snapping.snap(
-      { x: node.x(), y: node.y(), width: element.width, height: element.height },
-      others,
-      {
-        page: { width: page.width, height: page.height },
-        margin: PAGE_MARGIN,
-        gridSize: GRID_SIZE,
-        threshold: SNAP_THRESHOLD / this.viewport.zoom(),
-        snapToGrid: settings.snapEnabled,
-        snapToGuides: settings.guidesVisible,
-      },
-    );
-
-    node.position({ x: result.x, y: result.y });
-    this.guides.render(result.guides, { width: page.width, height: page.height });
-  }
-
-  /**
-   * Writes a finished drag into the document. The store still holds the
-   * pre-drag position — Konva moved on its own during the gesture — so the
-   * command captures the correct value to undo to without any bookkeeping here.
-   */
-  private commitDrag(node: ElementNode): void {
     const element = this.canvas.elementById(node.id());
     if (!element) {
       return;
     }
 
-    const x = Math.round(node.x());
-    const y = Math.round(node.y());
-    if (x === element.x && y === element.y) {
+    const settings = this.settings.settings();
+    if (settings.snapEnabled || settings.guidesVisible) {
+      const page = this.canvas.activePage();
+      const movingIds = new Set([...this.dragOrigin.keys()].map((moving) => moving.id()));
+      const others = this.canvas
+        .elements()
+        .filter((candidate) => !movingIds.has(candidate.id) && candidate.visible);
+
+      const result = this.snapping.snap(
+        { x: node.x(), y: node.y(), width: element.width, height: element.height },
+        others,
+        {
+          page: { width: page.width, height: page.height },
+          margin: PAGE_MARGIN,
+          gridSize: GRID_SIZE,
+          threshold: SNAP_THRESHOLD / this.viewport.zoom(),
+          snapToGrid: settings.snapEnabled,
+          snapToGuides: settings.guidesVisible,
+        },
+      );
+
+      node.position({ x: result.x, y: result.y });
+      this.guides.render(result.guides, { width: page.width, height: page.height });
+    }
+
+    this.followDrag(node);
+  }
+
+  /** Moves every other captured node by the delta `node` has moved since drag-start. */
+  private followDrag(node: ElementNode): void {
+    const origin = this.dragOrigin.get(node);
+    if (!origin) {
+      return;
+    }
+    const dx = node.x() - origin.x;
+    const dy = node.y() - origin.y;
+    if (dx === 0 && dy === 0) {
       return;
     }
 
+    for (const [other, start] of this.dragOrigin) {
+      if (other !== node) {
+        other.position({ x: start.x + dx, y: start.y + dy });
+      }
+    }
+  }
+
+  /**
+   * Writes a finished drag into the document, one `UpdateElementCommand` per
+   * node that actually moved. The store still holds the pre-drag position —
+   * Konva moved on its own during the gesture — so each command captures the
+   * correct value to undo to without any bookkeeping here. More than one
+   * moved node still lands as a single undo step.
+   */
+  private commitDrag(): void {
+    const updates: Command[] = [];
+    for (const node of this.dragOrigin.keys()) {
+      const element = this.canvas.elementById(node.id());
+      if (!element) {
+        continue;
+      }
+
+      const x = Math.round(node.x());
+      const y = Math.round(node.y());
+      if (x !== element.x || y !== element.y) {
+        updates.push(
+          new UpdateElementCommand(this.canvas, element.id, { x, y }, { label: 'Move element' }),
+        );
+      }
+    }
+    this.dragOrigin.clear();
+
+    if (updates.length === 0) {
+      return;
+    }
     this.commands.dispatch(
-      new UpdateElementCommand(this.canvas, element.id, { x, y }, { label: 'Move element' }),
+      updates.length === 1 ? updates[0] : new CompositeCommand(updates, `Move ${updates.length} elements`),
     );
   }
 
-  /** Writes a finished resize or rotation into the document. */
+  /** Writes a finished resize or rotation into the document, as one undo step. */
   private commitTransform(): void {
+    const updates: Command[] = [];
     for (const node of (this.transformer?.nodes() ?? []) as ElementNode[]) {
       const element = this.canvas.elementById(node.id());
       if (!element) {
@@ -189,10 +273,19 @@ export class CanvasInteractions implements OnDestroy {
       }
 
       const patch = this.measureTransform(node, element);
-      this.commands.dispatch(
+      updates.push(
         new UpdateElementCommand(this.canvas, element.id, patch, { label: 'Resize element' }),
       );
     }
+
+    if (updates.length === 0) {
+      return;
+    }
+    this.commands.dispatch(
+      updates.length === 1
+        ? updates[0]
+        : new CompositeCommand(updates, `Resize ${updates.length} elements`),
+    );
   }
 
   /**

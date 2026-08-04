@@ -2,6 +2,7 @@ import { Injectable, OnDestroy, inject } from '@angular/core';
 import Konva from 'konva/lib/Core';
 
 import { CanvasElement } from '../models/canvas-element.model';
+import { CanvasStore } from '../state/canvas.store';
 import { ELEMENT_TYPE_ATTR, ElementNode, applyBaseAttrs } from './element-renderer';
 import { ElementRendererRegistry } from './element-renderer.registry';
 
@@ -19,6 +20,7 @@ import { ElementRendererRegistry } from './element-renderer.registry';
 @Injectable()
 export class Reconciler implements OnDestroy {
   private readonly registry = inject(ElementRendererRegistry);
+  private readonly canvas = inject(CanvasStore);
 
   private layer: Konva.Layer | null = null;
   private readonly nodes = new Map<string, ElementNode>();
@@ -51,23 +53,24 @@ export class Reconciler implements OnDestroy {
 
     elements.forEach((element, index) => {
       rendered.add(element.id);
+      const effective = this.effectiveElement(element);
 
       let node = this.nodes.get(element.id);
       // An element that changed type is a different drawing altogether — its
       // old node cannot be updated into the new one, so it is replaced.
-      if (node && node.getAttr(ELEMENT_TYPE_ATTR) !== element.type) {
+      if (node && node.getAttr(ELEMENT_TYPE_ATTR) !== effective.type) {
         node.destroy();
         this.nodes.delete(element.id);
         node = undefined;
       }
 
       if (node) {
-        applyBaseAttrs(node, element);
-        this.registry.update(node, element);
+        applyBaseAttrs(node, effective);
+        this.registry.update(node, effective);
       } else {
-        node = this.registry.create(element);
-        node.setAttr(ELEMENT_TYPE_ATTR, element.type);
-        applyBaseAttrs(node, element);
+        node = this.registry.create(effective);
+        node.setAttr(ELEMENT_TYPE_ATTR, effective.type);
+        applyBaseAttrs(node, effective);
         // Renderers produce shapes and groups; `Layer.add` types that narrowly,
         // while everything downstream only needs the base node.
         layer.add(node as Konva.Shape);
@@ -90,6 +93,24 @@ export class Reconciler implements OnDestroy {
 
     // One draw for the whole sync, however many nodes it touched.
     layer.batchDraw();
+  }
+
+  /**
+   * A grouped element's own `visible`/`locked` are not the whole story: hiding
+   * or locking a group must hide or lock its members too. Overlaying that here
+   * — rather than in `CanvasStore` — keeps a member's *stored* flags exactly
+   * what the user set, so ungrouping doesn't need to remember what to restore.
+   */
+  private effectiveElement(element: CanvasElement): CanvasElement {
+    const parent = element.parentId ? this.canvas.groupById(element.parentId) : undefined;
+    if (!parent) {
+      return element;
+    }
+    return {
+      ...element,
+      visible: element.visible && parent.visible,
+      locked: element.locked || parent.locked,
+    };
   }
 
   detach(): void {

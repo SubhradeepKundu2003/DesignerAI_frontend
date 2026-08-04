@@ -1,13 +1,22 @@
 import { Injectable, computed, inject } from '@angular/core';
 
+import { AddGroupCommand } from '../commands/add-group.command';
 import { CommandBus } from '../commands/command-bus.service';
+import { CompositeCommand } from '../commands/composite.command';
 import { DeleteElementCommand } from '../commands/delete-element.command';
+import { DeleteGroupCommand } from '../commands/delete-group.command';
 import { Duplicate, DuplicateElementCommand } from '../commands/duplicate-element.command';
+import { GroupElementsCommand } from '../commands/group-elements.command';
 import { ReorderElementCommand } from '../commands/reorder-element.command';
+import { UngroupElementsCommand } from '../commands/ungroup-elements.command';
 import { UpdateElementCommand } from '../commands/update-element.command';
+import { CanvasElement, GroupElement } from '../models/canvas-element.model';
+import { Command } from '../models/commands.model';
 import { ElementFactory } from './element-factory.service';
 import { CanvasStore } from '../state/canvas.store';
 import { SelectionStore } from '../state/selection.store';
+import { computeBoundingBox } from '../utils/geometry.util';
+import { generateId } from '../utils/id.util';
 
 /**
  * Selection-driven mutations shared by the toolbar and the keyboard shortcuts.
@@ -28,41 +37,148 @@ export class ElementActions {
 
   readonly canBringForward = computed(() => {
     const element = this.selection.primary();
-    return element !== null && this.canvas.indexOf(element.id) < this.canvas.elementCount() - 1;
+    if (!element || element.parentId || this.selection.primaryGroup()) {
+      return false;
+    }
+    return this.canvas.indexOf(element.id) < this.canvas.elementCount() - 1;
   });
 
   readonly canSendBackward = computed(() => {
     const element = this.selection.primary();
-    return element !== null && this.canvas.indexOf(element.id) > 0;
+    if (!element || element.parentId || this.selection.primaryGroup()) {
+      return false;
+    }
+    return this.canvas.indexOf(element.id) > 0;
   });
 
-  /** Deletes the whole selection as one undo step. */
+  /** At least two top-level, unlocked, ungrouped elements are selected. */
+  readonly canGroup = computed(() => {
+    const ids = this.selection.selectedIds();
+    if (ids.length < 2) {
+      return false;
+    }
+    return ids.every((id) => {
+      const element = this.canvas.elementById(id);
+      return !!element && !element.parentId && !element.locked;
+    });
+  });
+
+  /** At least one selected id is a group. */
+  readonly canUngroup = computed(() =>
+    this.selection.selectedIds().some((id) => !!this.canvas.groupById(id)),
+  );
+
+  /** Deletes the whole selection as one undo step — grouped selections take their group record with them. */
   deleteSelection(): void {
+    const ids = this.selection.selectedIds();
     const elements = this.selection.selectedElements();
-    if (elements.length === 0) {
+    const groups = ids
+      .map((id) => this.canvas.groupById(id))
+      .filter((group): group is GroupElement => !!group);
+
+    if (elements.length === 0 && groups.length === 0) {
       return;
     }
 
-    this.commands.dispatch(new DeleteElementCommand(this.canvas, elements));
+    const parts: Command[] = [];
+    if (elements.length > 0) {
+      parts.push(new DeleteElementCommand(this.canvas, elements));
+    }
+    parts.push(...groups.map((group) => new DeleteGroupCommand(this.canvas, group)));
+
+    this.commands.dispatch(
+      parts.length === 1 ? parts[0] : new CompositeCommand(parts, `Delete ${ids.length} items`),
+    );
     this.selection.clear();
+    this.selection.exitGroup();
   }
 
-  /** Duplicates the whole selection and selects the copies. */
+  /**
+   * Duplicates the whole selection and selects the copies. A selected group is
+   * duplicated with its members into a fresh group of its own; loose elements
+   * duplicate exactly as before.
+   */
   duplicateSelection(): void {
-    const elements = this.selection.selectedElements();
+    const ids = this.selection.selectedIds();
+    const groups = new Map(
+      ids
+        .map((id) => [id, this.canvas.groupById(id)] as const)
+        .filter((entry): entry is [string, GroupElement] => !!entry[1]),
+    );
+
+    const sourceGroupOf = new Map<string, string>();
+    // The original index of each group's topmost member — every copy of that
+    // group's members inserts relative to this *shared* base rather than each
+    // member's own index, which is what keeps the new group's copies landing
+    // as one contiguous run instead of interleaving with the originals.
+    const topmostIndexOfGroup = new Map<string, number>();
+    for (const [groupId, group] of groups) {
+      for (const childId of group.childIds) {
+        sourceGroupOf.set(childId, groupId);
+      }
+      topmostIndexOfGroup.set(
+        groupId,
+        Math.max(...group.childIds.map((childId) => this.canvas.indexOf(childId))),
+      );
+    }
+
+    const looseIds = ids.filter((id) => !groups.has(id));
+    const elementIds = new Set([...looseIds, ...sourceGroupOf.keys()]);
+    // In canvas paint order, so the insertion-offset math below matches a
+    // plain single-selection duplicate exactly (see the loop comment).
+    const elements = this.canvas.elements().filter((element) => elementIds.has(element.id));
     if (elements.length === 0) {
       return;
     }
 
-    // Each copy is inserted directly above its original; `i` accounts for the
-    // copies already inserted ahead of later originals in this same batch.
-    const duplicates: Duplicate[] = elements.map((element, i) => ({
-      element: this.factory.duplicate(element),
-      index: this.canvas.indexOf(element.id) + 1 + i,
-    }));
+    const newGroupIdOf = new Map([...groups.keys()].map((groupId) => [groupId, generateId('group')]));
 
-    this.commands.dispatch(new DuplicateElementCommand(this.canvas, duplicates));
-    this.selection.selectMany(duplicates.map(({ element }) => element.id));
+    // Each copy is inserted directly above its cluster's topmost original
+    // member — its own original for a loose element, or the group's topmost
+    // member for a grouped one; `i` accounts for copies already inserted
+    // ahead of later ones in this same batch. `factory.duplicate` names each
+    // copy from the *document's* current elements, which none of this
+    // batch's other copies are part of yet, so a same-named collision within
+    // the batch is resolved locally against `usedNames`.
+    const usedNames = new Set<string>();
+    const duplicates: Duplicate[] = elements.map((element, i) => {
+      const copy = this.factory.duplicate(element);
+      if (usedNames.has(copy.name)) {
+        copy.name = nextFreeName(copy.name, usedNames);
+      }
+      usedNames.add(copy.name);
+
+      const ownerGroupId = sourceGroupOf.get(element.id);
+      copy.parentId = ownerGroupId ? newGroupIdOf.get(ownerGroupId) : undefined;
+      const baseIndex = ownerGroupId
+        ? topmostIndexOfGroup.get(ownerGroupId)!
+        : this.canvas.indexOf(element.id);
+      return { element: copy, index: baseIndex + 1 + i };
+    });
+
+    const parts: Command[] = [new DuplicateElementCommand(this.canvas, duplicates)];
+    const newTopIds = duplicates.filter(({ element }) => !element.parentId).map(({ element }) => element.id);
+
+    for (const [groupId, group] of groups) {
+      const newGroupId = newGroupIdOf.get(groupId)!;
+      const children = duplicates
+        .filter(({ element }) => element.parentId === newGroupId)
+        .map(({ element }) => element);
+      parts.push(
+        new AddGroupCommand(this.canvas, {
+          ...group,
+          id: newGroupId,
+          ...computeBoundingBox(children),
+          childIds: children.map((child) => child.id),
+        }),
+      );
+      newTopIds.push(newGroupId);
+    }
+
+    this.commands.dispatch(
+      parts.length === 1 ? parts[0] : new CompositeCommand(parts, `Duplicate ${ids.length} items`),
+    );
+    this.selection.selectMany(newTopIds);
   }
 
   bringForward(): void {
@@ -81,6 +197,42 @@ export class ElementActions {
     }
 
     this.commands.dispatch(new ReorderElementCommand(this.canvas, element.id, 'backward'));
+  }
+
+  /** Groups the selection into one new group and selects it. */
+  groupSelection(): void {
+    if (!this.canGroup()) {
+      return;
+    }
+
+    const elements = this.selection
+      .selectedIds()
+      .map((id) => this.canvas.elementById(id))
+      .filter((element): element is CanvasElement => !!element);
+
+    const command = new GroupElementsCommand(this.canvas, elements);
+    this.commands.dispatch(command);
+    this.selection.select(command.groupId);
+  }
+
+  /** Dissolves every selected group and selects their (now loose) members. */
+  ungroupSelection(): void {
+    const groups = this.selection
+      .selectedIds()
+      .map((id) => this.canvas.groupById(id))
+      .filter((group): group is GroupElement => !!group);
+    if (groups.length === 0) {
+      return;
+    }
+
+    const ungroupCommands = groups.map((group) => new UngroupElementsCommand(this.canvas, group));
+    this.commands.dispatch(
+      ungroupCommands.length === 1
+        ? ungroupCommands[0]
+        : new CompositeCommand(ungroupCommands, `Ungroup ${ungroupCommands.length} groups`),
+    );
+    this.selection.selectMany(ungroupCommands.flatMap((command) => [...command.childIds]));
+    this.selection.exitGroup();
   }
 
   /**
@@ -105,4 +257,17 @@ export class ElementActions {
       );
     }
   }
+}
+
+/** Bumps the trailing number in `name` until it is not in `used`. */
+function nextFreeName(name: string, used: ReadonlySet<string>): string {
+  const match = /^(.*) (\d+)$/.exec(name);
+  const base = match ? match[1] : name;
+  let n = match ? Number(match[2]) : 1;
+  let candidate = name;
+  while (used.has(candidate)) {
+    n += 1;
+    candidate = `${base} ${n}`;
+  }
+  return candidate;
 }

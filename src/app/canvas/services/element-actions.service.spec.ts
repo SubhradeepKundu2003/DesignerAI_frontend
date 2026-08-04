@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { shapeElement } from '../../../testing/canvas-fixtures';
+import { CommandBus } from '../commands/command-bus.service';
 import { CanvasStore } from '../state/canvas.store';
 import { HistoryStore } from '../state/history.store';
 import { SelectionStore } from '../state/selection.store';
@@ -11,6 +12,7 @@ describe('ElementActions', () => {
   let canvas: CanvasStore;
   let selection: SelectionStore;
   let history: HistoryStore;
+  let commands: CommandBus;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
@@ -18,6 +20,7 @@ describe('ElementActions', () => {
     canvas = TestBed.inject(CanvasStore);
     selection = TestBed.inject(SelectionStore);
     history = TestBed.inject(HistoryStore);
+    commands = TestBed.inject(CommandBus);
   });
 
   describe('deleteSelection', () => {
@@ -69,6 +72,19 @@ describe('ElementActions', () => {
       expect(canvas.elementCount()).toBe(2);
       expect(selection.selectedIds()).not.toEqual([element.id]);
       expect(selection.selectedIds().length).toBe(1);
+    });
+
+    it('should give each duplicate in a multi-selection a distinct name', () => {
+      const a = shapeElement({ name: 'Rectangle 1' });
+      const b = shapeElement({ name: 'Rectangle 2' });
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+      selection.selectMany([a.id, b.id]);
+
+      actions.duplicateSelection();
+
+      const names = canvas.elements().map((element) => element.name);
+      expect(new Set(names).size).toBe(names.length);
     });
   });
 
@@ -138,6 +154,115 @@ describe('ElementActions', () => {
 
       expect(canvas.elementById(element.id)).toMatchObject({ x: 3, y: 0 });
       expect(history.depth()).toBe(1);
+    });
+  });
+
+  describe('grouping', () => {
+    it('should require at least two top-level, unlocked elements to group', () => {
+      const a = shapeElement();
+      const b = shapeElement({ locked: true });
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+
+      selection.select(a.id);
+      expect(actions.canGroup()).toBe(false);
+
+      selection.selectMany([a.id, b.id]);
+      expect(actions.canGroup()).toBe(false);
+    });
+
+    it('should group the selection into one group and select it', () => {
+      const a = shapeElement();
+      const b = shapeElement();
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+      selection.selectMany([a.id, b.id]);
+
+      actions.groupSelection();
+
+      expect(selection.primaryGroup()).not.toBeNull();
+      expect(canvas.elementById(a.id)?.parentId).toBe(selection.selectedIds()[0]);
+      expect(canvas.elementById(b.id)?.parentId).toBe(selection.selectedIds()[0]);
+    });
+
+    it('should ungroup and select the loose members', () => {
+      const a = shapeElement();
+      const b = shapeElement();
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+      selection.selectMany([a.id, b.id]);
+      actions.groupSelection();
+
+      actions.ungroupSelection();
+
+      expect(actions.canUngroup()).toBe(false);
+      expect(canvas.elementById(a.id)?.parentId).toBeUndefined();
+      expect(canvas.elementById(b.id)?.parentId).toBeUndefined();
+      expect([...selection.selectedIds()].sort()).toEqual([a.id, b.id].sort());
+    });
+
+    it('should delete a selected group and its members as one undo step', () => {
+      const a = shapeElement();
+      const b = shapeElement();
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+      selection.selectMany([a.id, b.id]);
+      actions.groupSelection();
+      const groupId = selection.selectedIds()[0];
+
+      const depthAfterGrouping = history.depth();
+      actions.deleteSelection();
+      expect(canvas.elements()).toEqual([]);
+      expect(canvas.groupById(groupId)).toBeUndefined();
+      // The delete itself is one undo step, on top of the earlier group step.
+      expect(history.depth()).toBe(depthAfterGrouping + 1);
+
+      commands.undo();
+      expect(canvas.elements().map((element) => element.id).sort()).toEqual([a.id, b.id].sort());
+      expect(canvas.groupById(groupId)).toBeDefined();
+    });
+
+    it('should duplicate a selected group into a fresh group', () => {
+      const a = shapeElement();
+      const b = shapeElement();
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+      selection.selectMany([a.id, b.id]);
+      actions.groupSelection();
+      const originalGroupId = selection.selectedIds()[0];
+
+      actions.duplicateSelection();
+
+      const newGroupId = selection.selectedIds()[0];
+      expect(newGroupId).not.toBe(originalGroupId);
+      const newGroup = canvas.groupById(newGroupId)!;
+      expect(newGroup.childIds.length).toBe(2);
+      for (const childId of newGroup.childIds) {
+        expect(canvas.elementById(childId)?.parentId).toBe(newGroupId);
+      }
+      // The original group and its members are untouched.
+      expect(canvas.groupById(originalGroupId)?.childIds.length).toBe(2);
+
+      // The new group's members land as one contiguous run — not interleaved
+      // with the originals — and each gets its own, non-colliding name.
+      const parentIds = canvas.elements().map((element) => element.parentId);
+      const newRunStart = parentIds.indexOf(newGroupId);
+      const newRunEnd = parentIds.lastIndexOf(newGroupId);
+      expect(newRunEnd - newRunStart).toBe(1);
+      const newNames = newGroup.childIds.map((id) => canvas.elementById(id)!.name);
+      expect(new Set(newNames).size).toBe(2);
+    });
+
+    it('should not let bring-forward/send-backward act on a grouped selection', () => {
+      const a = shapeElement();
+      const b = shapeElement();
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+      selection.selectMany([a.id, b.id]);
+      actions.groupSelection();
+
+      expect(actions.canBringForward()).toBe(false);
+      expect(actions.canSendBackward()).toBe(false);
     });
   });
 });

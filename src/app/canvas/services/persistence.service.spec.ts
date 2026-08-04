@@ -95,7 +95,7 @@ describe('PersistenceService', () => {
     persistence.save();
     canvas.replaceDocument({
       version: 1,
-      pages: [{ id: 'blank', width: 794, height: 1123, background: '#fff', elements: [] }],
+      pages: [{ id: 'blank', width: 794, height: 1123, background: '#fff', elements: [], groups: [] }],
     });
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as CanvasDocument;
 

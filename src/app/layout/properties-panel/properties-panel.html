@@ -1,7 +1,11 @@
 <aside class="properties" aria-label="Properties">
   <h2 class="properties__heading">Properties</h2>
 
-  @if (element(); as el) {
+  @if (group(); as g) {
+    <div class="properties__form">
+      <app-group-properties [group]="g" />
+    </div>
+  } @else if (element(); as el) {
     <div class="properties__form">
       <app-common-properties [element]="el" [disabled]="disabled()" />
 

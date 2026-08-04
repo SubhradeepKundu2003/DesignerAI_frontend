@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import Konva from 'konva/lib/Core';
 import { Transformer } from 'konva/lib/shapes/Transformer';
 
-import { shapeElement, textElement } from '../../../testing/canvas-fixtures';
+import { groupElement, shapeElement, textElement } from '../../../testing/canvas-fixtures';
 import { CommandBus } from '../commands/command-bus.service';
 import { CanvasElement } from '../models/canvas-element.model';
 import { ElementNode } from '../renderers/element-renderer';
@@ -150,7 +150,9 @@ describe('CanvasInteractions', () => {
     it('should commit a finished drag as an undoable move', () => {
       const element = shapeElement({ x: 10, y: 20 });
       const node = place(element);
+      transformer.nodes([node as Konva.Shape]);
 
+      node.fire('dragstart', { evt: pointerEvent() }, true);
       node.position({ x: 120, y: 240 });
       node.fire('dragend', { evt: pointerEvent() }, true);
 
@@ -191,6 +193,29 @@ describe('CanvasInteractions', () => {
 
       expect(stopDrag).toHaveBeenCalled();
     });
+
+    it('should move every node attached to the transformer together, as one undo step', () => {
+      settings.toggleSnap();
+      settings.toggleGuides();
+      const a = shapeElement({ x: 0, y: 0 });
+      const b = shapeElement({ x: 100, y: 100 });
+      const nodeA = place(a);
+      const nodeB = place(b);
+      transformer.nodes([nodeA as Konva.Shape, nodeB as Konva.Shape]);
+
+      nodeA.fire('dragstart', { evt: pointerEvent() }, true);
+      nodeA.position({ x: 20, y: 20 });
+      nodeA.fire('dragmove', { evt: pointerEvent() }, true);
+      nodeA.fire('dragend', { evt: pointerEvent() }, true);
+
+      expect(canvas.elementById(a.id)).toMatchObject({ x: 20, y: 20 });
+      expect(canvas.elementById(b.id)).toMatchObject({ x: 120, y: 120 });
+      expect(history.depth()).toBe(1);
+
+      TestBed.inject(CommandBus).undo();
+      expect(canvas.elementById(a.id)).toMatchObject({ x: 0, y: 0 });
+      expect(canvas.elementById(b.id)).toMatchObject({ x: 100, y: 100 });
+    });
   });
 
   describe('snapping', () => {
@@ -214,7 +239,9 @@ describe('CanvasInteractions', () => {
     it('should snap to another element and draw a guide for it', () => {
       place(shapeElement({ x: 200, y: 0, width: 100, height: 40 }));
       const node = place(shapeElement({ x: 10, y: 300, width: 50, height: 50 }));
+      transformer.nodes([node as Konva.Shape]);
 
+      node.fire('dragstart', { evt: pointerEvent() }, true);
       node.position({ x: 198, y: 300 });
       node.fire('dragmove', { evt: pointerEvent() }, true);
 
@@ -341,6 +368,46 @@ describe('CanvasInteractions', () => {
       node.fire('dblclick', { evt: {} }, true);
 
       expect(TestBed.inject(TextEditingStore).editingId()).toBeNull();
+    });
+  });
+
+  describe('groups', () => {
+    function group(): { a: CanvasElement; b: CanvasElement; nodeA: ElementNode } {
+      const a = shapeElement();
+      const b = shapeElement();
+      const nodeA = place(a);
+      place(b);
+      canvas.groupElements(groupElement({ id: 'g1', childIds: [a.id, b.id] }), [a.id, b.id]);
+      return { a, b, nodeA };
+    }
+
+    it('should select the whole group on a plain click', () => {
+      const { nodeA } = group();
+
+      nodeA.fire('pointerdown', { evt: pointerEvent() }, true);
+
+      expect(selection.selectedIds()).toEqual(['g1']);
+    });
+
+    it('should enter the group on double-click and select the clicked member directly', () => {
+      const { a, nodeA } = group();
+
+      nodeA.fire('dblclick', { evt: {} }, true);
+
+      expect(selection.enteredGroupId()).toBe('g1');
+      expect(selection.selectedIds()).toEqual([a.id]);
+    });
+
+    it('should exit the group when clicking outside it', () => {
+      group();
+      const outsider = shapeElement();
+      const outsiderNode = place(outsider);
+      selection.enterGroup('g1');
+
+      outsiderNode.fire('pointerdown', { evt: pointerEvent() }, true);
+
+      expect(selection.enteredGroupId()).toBeNull();
+      expect(selection.selectedIds()).toEqual([outsider.id]);
     });
   });
 

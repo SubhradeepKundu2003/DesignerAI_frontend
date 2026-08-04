@@ -56,6 +56,14 @@ export const ICON_PATHS = {
     path('M7 14v1a2 2 0 0 0 2 2h1'),
     path('M14 7h1a2 2 0 0 1 2 2v1'),
   ],
+  group: [
+    { kind: 'rect', x: 3, y: 3, width: 13, height: 13, rx: 2 },
+    { kind: 'rect', x: 8, y: 8, width: 13, height: 13, rx: 2 },
+  ],
+  ungroup: [
+    { kind: 'rect', x: 2, y: 2, width: 9, height: 9, rx: 2 },
+    { kind: 'rect', x: 13, y: 13, width: 9, height: 9, rx: 2 },
+  ],
 
   // Canvas chrome
   grid: [

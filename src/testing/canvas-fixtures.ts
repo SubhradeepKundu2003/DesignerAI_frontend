@@ -1,5 +1,6 @@
 import {
   DividerElement,
+  GroupElement,
   ImageElement,
   ShapeElement,
   TextElement,
@@ -77,6 +78,23 @@ export function imageElement(overrides: Partial<ImageElement> = {}): ImageElemen
     ...baseElement('Image'),
     type: 'image',
     src: 'data:image/png;base64,stub',
+    ...overrides,
+  };
+}
+
+export function groupElement(overrides: Partial<GroupElement> = {}): GroupElement {
+  sequence += 1;
+  return {
+    id: `group-${sequence}`,
+    type: 'group',
+    name: `Group ${sequence}`,
+    x: 10,
+    y: 20,
+    width: 100,
+    height: 60,
+    locked: false,
+    visible: true,
+    childIds: [],
     ...overrides,
   };
 }

@@ -1,12 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import Konva from 'konva/lib/Core';
 
-import { dividerElement, shapeElement, textElement } from '../../../testing/canvas-fixtures';
+import { dividerElement, groupElement, shapeElement, textElement } from '../../../testing/canvas-fixtures';
+import { CanvasStore } from '../state/canvas.store';
 import { ElementRendererRegistry } from './element-renderer.registry';
 import { Reconciler } from './reconciler';
 
 describe('Reconciler', () => {
   let reconciler: Reconciler;
+  let canvas: CanvasStore;
   let layer: Konva.Layer;
 
   const nodeIds = () => layer.getChildren().map((node) => node.id());
@@ -14,6 +16,7 @@ describe('Reconciler', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [ElementRendererRegistry, Reconciler] });
     reconciler = TestBed.inject(Reconciler);
+    canvas = TestBed.inject(CanvasStore);
 
     layer = new Konva.Layer();
     reconciler.attach(layer);
@@ -110,6 +113,29 @@ describe('Reconciler', () => {
     reconciler.sync([element]);
 
     expect(reconciler.nodeFor(element.id)!.visible()).toBe(false);
+  });
+
+  it("should cascade a group's hidden/locked state to its members", () => {
+    canvas.insertGroup(groupElement({ id: 'g1', visible: false, locked: true }));
+    const element = shapeElement({ parentId: 'g1', visible: true, locked: false });
+
+    reconciler.sync([element]);
+
+    const node = reconciler.nodeFor(element.id)!;
+    expect(node.visible()).toBe(false);
+    expect(node.draggable()).toBe(false);
+    expect(node.listening()).toBe(false);
+  });
+
+  it("should leave an ungrouped element's own visible/locked untouched", () => {
+    canvas.insertGroup(groupElement({ id: 'g1', visible: true, locked: false }));
+    const element = shapeElement({ parentId: undefined, visible: true, locked: false });
+
+    reconciler.sync([element]);
+
+    const node = reconciler.nodeFor(element.id)!;
+    expect(node.visible()).toBe(true);
+    expect(node.draggable()).toBe(true);
   });
 
   it('should resolve a list of ids to nodes, skipping unknown ones', () => {

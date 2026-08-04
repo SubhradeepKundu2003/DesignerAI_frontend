@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { shapeElement } from '../../../../testing/canvas-fixtures';
+import { groupElement, shapeElement } from '../../../../testing/canvas-fixtures';
 import { CommandBus } from '../../commands/command-bus.service';
 import { CanvasStore } from '../../state/canvas.store';
 import { SelectionStore } from '../../state/selection.store';
@@ -153,5 +153,83 @@ describe('LayersPanel', () => {
 
     TestBed.inject(CommandBus).undo();
     expect(canvas.elements().map((element) => element.id)).toEqual([a.id, b.id, c.id]);
+  });
+
+  describe('groups', () => {
+    function place() {
+      const a = shapeElement({ name: 'A' });
+      const b = shapeElement({ name: 'B' });
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+      canvas.groupElements(groupElement({ id: 'g1', name: 'My group', childIds: [a.id, b.id] }), [
+        a.id,
+        b.id,
+      ]);
+      return { a, b };
+    }
+
+    it('should show a header row above its indented members', async () => {
+      place();
+      await fixture.whenStable();
+
+      const displayed = rows();
+      expect(displayed.length).toBe(3);
+      expect(displayed[0].classList.contains('row--group')).toBe(true);
+      expect(nameOf(displayed[0])).toBe('My group');
+      expect(displayed[1].classList.contains('row--indent')).toBe(true);
+      expect(displayed[2].classList.contains('row--indent')).toBe(true);
+    });
+
+    it('should select the whole group on header click', async () => {
+      place();
+      await fixture.whenStable();
+
+      rows()[0].click();
+
+      expect(selection.selectedIds()).toEqual(['g1']);
+    });
+
+    it('should collapse and expand a group', async () => {
+      place();
+      await fixture.whenStable();
+
+      (fixture.nativeElement.querySelector('.row__collapse') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      expect(rows().length).toBe(1);
+
+      (fixture.nativeElement.querySelector('.row__collapse') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      expect(rows().length).toBe(3);
+    });
+
+    it('should not make a grouped row draggable', async () => {
+      place();
+      canvas.insertElement(shapeElement({ name: 'Loose' }));
+      await fixture.whenStable();
+
+      // Displayed topmost-first: [Loose, group header, B, A].
+      const handles: HTMLButtonElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('.row__handle'),
+      );
+      expect(handles[0].getAttribute('draggable')).toBe('true');
+      expect(handles[1].getAttribute('draggable')).toBe('false');
+      expect(handles[2].getAttribute('draggable')).toBe('false');
+    });
+
+    it('should toggle a group\'s visibility and lock as one undoable step each', async () => {
+      place();
+      await fixture.whenStable();
+
+      const groupActions = actionButtons(rows()[0]);
+      groupActions[0].click();
+      await fixture.whenStable();
+      expect(canvas.groupById('g1')?.visible).toBe(false);
+
+      groupActions[1].click();
+      await fixture.whenStable();
+      expect(canvas.groupById('g1')?.locked).toBe(true);
+
+      expect(selection.selectedIds()).toEqual([]);
+    });
   });
 });

@@ -1,9 +1,13 @@
 import { Injectable, computed, signal } from '@angular/core';
 
 import { CANVAS_DOCUMENT_VERSION, CanvasDocument, Page } from '../models/canvas-document.model';
-import { CanvasElement, ElementPatch } from '../models/canvas-element.model';
+import { CanvasElement, ElementPatch, GroupElement } from '../models/canvas-element.model';
 import { PAGE_BACKGROUND, PAGE_SIZE } from '../models/editor-config';
+import { computeBoundingBox } from '../utils/geometry.util';
 import { generateId } from '../utils/id.util';
+
+/** Patch a group's own fields — never its `childIds`, which only grouping/ungrouping change. */
+export type GroupPatch = Partial<Omit<GroupElement, 'id' | 'type' | 'childIds'>>;
 
 /** A fresh, empty A4 newsletter — what the editor opens with. */
 export function createBlankDocument(): CanvasDocument {
@@ -17,6 +21,7 @@ export function createBlankDocument(): CanvasDocument {
         height: PAGE_SIZE.height,
         background: PAGE_BACKGROUND,
         elements: [],
+        groups: [],
       },
     ],
   };
@@ -64,6 +69,9 @@ export class CanvasStore {
 
   readonly elementCount = computed(() => this.elements().length);
 
+  /** Groups on the active page. Read defensively: documents saved before groups existed have no `groups` array. */
+  readonly groups = computed<readonly GroupElement[]>(() => this.activePage().groups ?? []);
+
   elementById(id: string | null | undefined): CanvasElement | undefined {
     if (!id) {
       return undefined;
@@ -77,10 +85,28 @@ export class CanvasStore {
     return undefined;
   }
 
+  groupById(id: string | null | undefined): GroupElement | undefined {
+    if (!id) {
+      return undefined;
+    }
+    for (const page of this.pages()) {
+      const found = (page.groups ?? []).find((group) => group.id === id);
+      if (found) {
+        return found;
+      }
+    }
+    return undefined;
+  }
+
   /** Index in paint order on the element's own page, or -1. */
   indexOf(id: string): number {
     const owner = this.pageOf(id);
     return owner ? owner.elements.findIndex((element) => element.id === id) : -1;
+  }
+
+  /** `id` itself, or the id of the group it belongs to, if any. Groups do not nest. */
+  topLevelIdOf(id: string): string {
+    return this.elementById(id)?.parentId ?? id;
   }
 
   /** Switches the page being edited. No-op for an id that no longer exists. */
@@ -127,6 +153,7 @@ export class CanvasStore {
     if (!owner) {
       return;
     }
+    let parentId: string | undefined;
     this.updatePageElements(owner.id, (elements) => {
       const index = elements.findIndex((element) => element.id === id);
       if (index === -1) {
@@ -137,8 +164,31 @@ export class CanvasStore {
       // `CanvasElement`; `id` and `type` are excluded from the patch type, which
       // is what keeps this cast honest.
       next[index] = { ...next[index], ...patch } as CanvasElement;
+      parentId = next[index].parentId;
       return next;
     });
+
+    // A patched element's own box may have moved — keep its group's stored
+    // box (used for snapping, the properties panel and the layers panel)
+    // in step, as a second write rather than folding it into the update
+    // above: groups live in a different array than elements.
+    if (parentId) {
+      this.recomputeGroupBox(parentId);
+    }
+  }
+
+  private recomputeGroupBox(groupId: string): void {
+    const group = this.groupById(groupId);
+    if (!group) {
+      return;
+    }
+    const children = group.childIds
+      .map((childId) => this.elementById(childId))
+      .filter((element): element is CanvasElement => !!element);
+    if (children.length === 0) {
+      return;
+    }
+    this.patchGroup(groupId, computeBoundingBox(children));
   }
 
   /** Moves an element to `toIndex` in paint order (bring forward / send back). */
@@ -156,6 +206,76 @@ export class CanvasStore {
       const next = [...elements];
       const [moved] = next.splice(from, 1);
       next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
+  // --- Group mutators. Commands only. ---------------------------------------
+
+  /**
+   * Groups `memberIds` into `group`: tags each member with `parentId: group.id`
+   * and gathers them into one contiguous run within the page's `elements`
+   * array (needed because reordering a single grouped element is unsupported —
+   * the layers panel renders groups by scanning for contiguous runs). The run
+   * lands where the topmost member originally sat, and both the members' and
+   * the other elements' relative order is otherwise preserved.
+   */
+  groupElements(group: GroupElement, memberIds: readonly string[]): void {
+    const owner = this.pageOf(memberIds[0]);
+    if (!owner) {
+      return;
+    }
+    const memberSet = new Set(memberIds);
+
+    this.updatePageElements(owner.id, (elements) => {
+      const topmostIndex = Math.max(
+        ...memberIds.map((id) => elements.findIndex((element) => element.id === id)),
+      );
+      if (topmostIndex < 0) {
+        return elements;
+      }
+
+      const members = elements.filter((element) => memberSet.has(element.id));
+      const others = elements.filter((element) => !memberSet.has(element.id));
+      const othersBeforeCount = elements
+        .slice(0, topmostIndex + 1)
+        .filter((element) => !memberSet.has(element.id)).length;
+
+      const next = [
+        ...others.slice(0, othersBeforeCount),
+        ...members.map((element) => ({ ...element, parentId: group.id }) as CanvasElement),
+        ...others.slice(othersBeforeCount),
+      ];
+      return next;
+    });
+
+    this.insertGroup(group);
+  }
+
+  insertGroup(group: GroupElement): void {
+    this.updatePageGroups(this.activePage().id, (groups) => [...groups, group]);
+  }
+
+  removeGroup(id: string): void {
+    const owner = this.pageOf(id);
+    if (!owner) {
+      return;
+    }
+    this.updatePageGroups(owner.id, (groups) => groups.filter((group) => group.id !== id));
+  }
+
+  patchGroup(id: string, patch: GroupPatch): void {
+    const owner = this.pageOf(id);
+    if (!owner) {
+      return;
+    }
+    this.updatePageGroups(owner.id, (groups) => {
+      const index = groups.findIndex((group) => group.id === id);
+      if (index === -1) {
+        return groups;
+      }
+      const next = [...groups];
+      next[index] = { ...next[index], ...patch };
       return next;
     });
   }
@@ -230,8 +350,13 @@ export class CanvasStore {
     });
   }
 
+  /** Finds the page owning an element *or* a group id. */
   private pageOf(id: string): Page | undefined {
-    return this.pages().find((page) => page.elements.some((element) => element.id === id));
+    return this.pages().find(
+      (page) =>
+        page.elements.some((element) => element.id === id) ||
+        (page.groups ?? []).some((group) => group.id === id),
+    );
   }
 
   /**
@@ -257,6 +382,29 @@ export class CanvasStore {
 
       const pages = [...document.pages];
       pages[index] = { ...page, elements: [...elements] };
+      return { ...document, pages };
+    });
+  }
+
+  /** Same shape as {@link updatePageElements}, for a page's `groups` array. */
+  private updatePageGroups(
+    pageId: string,
+    update: (groups: readonly GroupElement[]) => readonly GroupElement[],
+  ): void {
+    this.state.update((document) => {
+      const index = document.pages.findIndex((page) => page.id === pageId);
+      if (index === -1) {
+        return document;
+      }
+
+      const page = document.pages[index];
+      const groups = update(page.groups ?? []);
+      if (groups === page.groups) {
+        return document;
+      }
+
+      const pages = [...document.pages];
+      pages[index] = { ...page, groups: [...groups] };
       return { ...document, pages };
     });
   }

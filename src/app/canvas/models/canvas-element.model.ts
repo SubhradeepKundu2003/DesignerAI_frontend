@@ -34,6 +34,33 @@ export interface BaseElement {
   locked: boolean;
   /** Hidden elements are not rendered, but remain in the document. */
   visible: boolean;
+  /** The id of the {@link GroupElement} this element belongs to, if any. */
+  parentId?: string;
+}
+
+/**
+ * A named collection of top-level elements that move, transform, delete and
+ * duplicate as one unit.
+ *
+ * Deliberately *not* a member of the {@link CanvasElement} union: a group is
+ * never handed to an element renderer, so keeping it separate means the
+ * renderer registry, the element factory and every properties-panel
+ * type-narrowing switch stay exhaustive without a `'group'` case to ignore.
+ * Its `x`/`y`/`width`/`height` are a derived bounding box of its children,
+ * recomputed whenever a member changes — not independently editable.
+ */
+export interface GroupElement {
+  readonly id: string;
+  readonly type: 'group';
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  locked: boolean;
+  visible: boolean;
+  /** Ids of this group's members, in paint order. */
+  childIds: string[];
 }
 
 export interface TextElement extends BaseElement {

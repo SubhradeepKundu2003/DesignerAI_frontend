@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
-import { shapeElement, textElement } from '../../../testing/canvas-fixtures';
+import { groupElement, shapeElement, textElement } from '../../../testing/canvas-fixtures';
+import { Page } from '../models/canvas-document.model';
 import { PAGE_SIZE } from '../models/editor-config';
 import { CanvasStore } from './canvas.store';
 
@@ -115,7 +116,7 @@ describe('CanvasStore', () => {
     it('should add a page and switch to it', () => {
       const firstPageId = store.activePage().id;
 
-      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [], groups: [] });
       store.setActivePage('page-2');
 
       expect(store.pageCount()).toBe(2);
@@ -128,7 +129,7 @@ describe('CanvasStore', () => {
 
     it('should scope elements to the page they were inserted on', () => {
       const firstPageId = store.activePage().id;
-      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [], groups: [] });
 
       const onFirstPage = shapeElement();
       store.insertElement(onFirstPage);
@@ -149,7 +150,7 @@ describe('CanvasStore', () => {
       const element = shapeElement();
       store.insertElement(element);
 
-      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [], groups: [] });
       store.setActivePage('page-2');
 
       // Simulates an undo firing while a different page is now active: the
@@ -172,7 +173,7 @@ describe('CanvasStore', () => {
 
     it('should fall back to a neighbouring page when the active page is removed', () => {
       const firstPageId = store.activePage().id;
-      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [], groups: [] });
       store.setActivePage('page-2');
 
       store.removePage('page-2');
@@ -182,8 +183,8 @@ describe('CanvasStore', () => {
     });
 
     it('should keep the active page identity stable when a page before it is reordered or removed', () => {
-      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [] });
-      store.insertPage({ id: 'page-3', name: 'Page 3', width: 794, height: 1123, background: '#fff', elements: [] });
+      store.insertPage({ id: 'page-2', name: 'Page 2', width: 794, height: 1123, background: '#fff', elements: [], groups: [] });
+      store.insertPage({ id: 'page-3', name: 'Page 3', width: 794, height: 1123, background: '#fff', elements: [], groups: [] });
       store.setActivePage('page-3');
 
       store.movePage('page-2', 2);
@@ -192,6 +193,78 @@ describe('CanvasStore', () => {
       store.removePage('page-2');
       expect(store.activePage().id).toBe('page-3');
       expect(store.pageCount()).toBe(2);
+    });
+  });
+
+  describe('groups', () => {
+    it('should read groups as empty on a document saved before groups existed', () => {
+      // Simulates an old document loaded from storage: no `groups` array at all.
+      const legacyPage: Partial<Page> = { ...store.activePage() };
+      delete legacyPage.groups;
+      store.replaceDocument({ version: 1, pages: [legacyPage as Page] });
+
+      expect(store.groups()).toEqual([]);
+    });
+
+    it('should gather members into a contiguous run and tag them with parentId', () => {
+      const a = shapeElement({ name: 'A' });
+      const b = shapeElement({ name: 'B' });
+      const c = shapeElement({ name: 'C' });
+      store.insertElement(a);
+      store.insertElement(b);
+      store.insertElement(c);
+
+      const group = groupElement({ id: 'g1', childIds: [a.id, c.id] });
+      store.groupElements(group, [a.id, c.id]);
+
+      expect(ids()).toEqual([b.id, a.id, c.id]);
+      expect(store.elementById(a.id)?.parentId).toBe('g1');
+      expect(store.elementById(c.id)?.parentId).toBe('g1');
+      expect(store.elementById(b.id)?.parentId).toBeUndefined();
+      expect(store.groupById('g1')).toEqual(group);
+    });
+
+    it('should resolve a grouped element up to its group, and a top-level element to itself', () => {
+      const a = shapeElement();
+      const loose = shapeElement();
+      store.insertElement(a);
+      store.insertElement(loose);
+      store.groupElements(groupElement({ id: 'g1', childIds: [a.id] }), [a.id]);
+
+      expect(store.topLevelIdOf(a.id)).toBe('g1');
+      expect(store.topLevelIdOf(loose.id)).toBe(loose.id);
+    });
+
+    it('should recompute a group box when a member is patched', () => {
+      const a = shapeElement({ x: 0, y: 0, width: 50, height: 50 });
+      const b = shapeElement({ x: 100, y: 100, width: 50, height: 50 });
+      store.insertElement(a);
+      store.insertElement(b);
+      store.groupElements(groupElement({ id: 'g1', childIds: [a.id, b.id] }), [a.id, b.id]);
+
+      store.patchElement(a.id, { x: -50, y: -50 });
+
+      expect(store.groupById('g1')).toMatchObject({ x: -50, y: -50, width: 200, height: 200 });
+    });
+
+    it('should remove a group record and stop finding it', () => {
+      const a = shapeElement();
+      store.insertElement(a);
+      store.groupElements(groupElement({ id: 'g1', childIds: [a.id] }), [a.id]);
+
+      store.removeGroup('g1');
+
+      expect(store.groupById('g1')).toBeUndefined();
+    });
+
+    it('should patch a group in place', () => {
+      const a = shapeElement();
+      store.insertElement(a);
+      store.groupElements(groupElement({ id: 'g1', name: 'Group 1', childIds: [a.id] }), [a.id]);
+
+      store.patchGroup('g1', { name: 'Renamed', locked: true });
+
+      expect(store.groupById('g1')).toMatchObject({ name: 'Renamed', locked: true });
     });
   });
 });

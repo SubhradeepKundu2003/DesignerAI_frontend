@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { shapeElement } from '../../../testing/canvas-fixtures';
+import { groupElement, shapeElement } from '../../../testing/canvas-fixtures';
 import { CanvasStore } from './canvas.store';
 import { SelectionStore } from './selection.store';
 
@@ -85,5 +85,63 @@ describe('SelectionStore', () => {
     selection.clear();
 
     expect(selection.selectedIds()).toEqual([]);
+  });
+
+  describe('groups', () => {
+    function place(): { a: ReturnType<typeof shapeElement>; b: ReturnType<typeof shapeElement> } {
+      const a = shapeElement({ name: 'A' });
+      const b = shapeElement({ name: 'B' });
+      canvas.insertElement(a);
+      canvas.insertElement(b);
+      canvas.groupElements(groupElement({ id: 'g1', childIds: [a.id, b.id] }), [a.id, b.id]);
+      return { a, b };
+    }
+
+    it('should expand a selected group into its members', () => {
+      const { a, b } = place();
+
+      selection.select('g1');
+
+      expect(selection.selectedElements().map((element) => element.id)).toEqual([a.id, b.id]);
+      expect(selection.primary()?.id).toBe(a.id);
+    });
+
+    it('should expose the group itself only when it is the sole selection', () => {
+      const { a } = place();
+      selection.select('g1');
+      expect(selection.primaryGroup()?.id).toBe('g1');
+
+      selection.selectMany(['g1', a.id]);
+      expect(selection.primaryGroup()).toBeNull();
+    });
+
+    it('should mark a grouped child as selected when its group is', () => {
+      const { a, b } = place();
+
+      selection.select('g1');
+
+      expect(selection.isSelected(a.id)).toBe(true);
+      expect(selection.isSelected(b.id)).toBe(true);
+      expect(selection.isSelected('g1')).toBe(true);
+    });
+
+    it('should self-heal when the entered group is ungrouped elsewhere', () => {
+      place();
+      selection.enterGroup('g1');
+      expect(selection.enteredGroupId()).toBe('g1');
+
+      canvas.removeGroup('g1');
+
+      expect(selection.enteredGroupId()).toBeNull();
+    });
+
+    it('should exit a group on demand', () => {
+      place();
+      selection.enterGroup('g1');
+
+      selection.exitGroup();
+
+      expect(selection.enteredGroupId()).toBeNull();
+    });
   });
 });
