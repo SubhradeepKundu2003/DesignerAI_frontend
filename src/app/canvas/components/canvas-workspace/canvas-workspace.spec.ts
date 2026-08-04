@@ -85,12 +85,27 @@ describe('CanvasWorkspace', () => {
     expect(stage().position()).toEqual({ x: panX, y: panY });
   });
 
-  it('should zoom on wheel instead of scrolling the page', async () => {
+  it('should pan on a plain wheel instead of scrolling the page', async () => {
+    resizeObserver.emit({ width: 1200, height: 900 });
+    await fixture.whenStable();
+    const before = viewport.transform();
+
+    const event = new WheelEvent('wheel', { deltaX: 10, deltaY: -100, cancelable: true });
+    fixture.nativeElement.dispatchEvent(event);
+    await fixture.whenStable();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(viewport.zoom()).toBe(before.zoom);
+    expect(viewport.panX()).toBe(before.panX - 10);
+    expect(viewport.panY()).toBe(before.panY + 100);
+  });
+
+  it('should zoom on Ctrl/Cmd+wheel', async () => {
     resizeObserver.emit({ width: 1200, height: 900 });
     await fixture.whenStable();
     const before = viewport.zoom();
 
-    const event = new WheelEvent('wheel', { deltaY: -100, cancelable: true });
+    const event = new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, cancelable: true });
     fixture.nativeElement.dispatchEvent(event);
     await fixture.whenStable();
 

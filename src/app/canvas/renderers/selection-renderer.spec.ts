@@ -82,13 +82,22 @@ describe('SelectionRenderer', () => {
     expect(renderer.node!.enabledAnchors().length).toBe(8);
   });
 
-  it('should keep the handles the same size on screen at any zoom', () => {
+  it('should hand Konva a fixed anchor size — Konva renders anchors at a constant screen size on its own', () => {
     selectElements([shapeElement()], 1);
     const atOneHundredPercent = renderer.node!.anchorSize();
 
     selectElements([shapeElement()], 4);
 
-    expect(renderer.node!.anchorSize() * 4).toBeCloseTo(atOneHundredPercent, 5);
+    expect(renderer.node!.anchorSize()).toBe(atOneHundredPercent);
+  });
+
+  it('should keep the rotate handle the same screen distance from the shape at any zoom', () => {
+    selectElements([shapeElement()], 1);
+    const atOneHundredPercent = renderer.node!.rotateAnchorOffset();
+
+    selectElements([shapeElement()], 4);
+
+    expect(renderer.node!.rotateAnchorOffset() * 4).toBeCloseTo(atOneHundredPercent, 5);
   });
 
   it('should refuse a resize that would collapse an element to nothing', () => {

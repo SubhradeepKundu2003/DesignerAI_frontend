@@ -202,10 +202,14 @@ export class CanvasWorkspace {
   }
 
   protected onWheel(event: WheelEvent): void {
-    // The workspace owns the wheel: this is a page editor, so the wheel zooms
-    // rather than scrolling the document behind it.
+    // Plain scroll (mouse wheel or trackpad) pans, matching Figma/Canva/Slides;
+    // Ctrl/Cmd+scroll — which is also how Chrome reports trackpad pinch — zooms.
     event.preventDefault();
-    this.viewport.zoomByWheel(Math.sign(event.deltaY), this.toStagePoint(event));
+    if (event.ctrlKey || event.metaKey) {
+      this.viewport.zoomByWheel(Math.sign(event.deltaY), this.toStagePoint(event));
+    } else {
+      this.viewport.panBy(-event.deltaX, -event.deltaY);
+    }
   }
 
   protected onPointerDown(event: PointerEvent): void {

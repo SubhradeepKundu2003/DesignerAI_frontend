@@ -7,7 +7,13 @@ import { MIN_TRANSFORM_BOX } from '../models/editor-config';
 import { readToken } from '../utils/theme.util';
 import { ElementNode } from './element-renderer';
 
-/** Handle metrics in screen px — divided by the zoom before reaching Konva. */
+/**
+ * Handle metrics in screen px. Konva's Transformer already draws its anchors
+ * at a constant absolute size regardless of the stage's scale — verified by
+ * setting the stage scale directly and watching the anchors not move a pixel
+ * while the page itself scaled — so these are handed to it as-is, not
+ * pre-divided by zoom.
+ */
 const HANDLE = {
   anchorSize: 9,
   anchorStrokeWidth: 1.5,
@@ -69,9 +75,6 @@ export class SelectionRenderer implements OnDestroy {
   /**
    * Points the handles at `elements`, using `nodes` as their on-stage
    * counterparts. An empty selection hides the transformer entirely.
-   *
-   * `zoom` keeps the chrome a constant size on screen: the overlay layer is
-   * scaled with the stage, so every metric is divided back out.
    */
   render(elements: readonly CanvasElement[], nodes: readonly ElementNode[], zoom: number): void {
     const transformer = this.transformer;
@@ -80,10 +83,10 @@ export class SelectionRenderer implements OnDestroy {
     }
 
     transformer.setAttrs({
-      anchorSize: HANDLE.anchorSize / zoom,
-      anchorStrokeWidth: HANDLE.anchorStrokeWidth / zoom,
-      borderStrokeWidth: HANDLE.borderStrokeWidth / zoom,
-      padding: HANDLE.padding / zoom,
+      anchorSize: HANDLE.anchorSize,
+      anchorStrokeWidth: HANDLE.anchorStrokeWidth,
+      borderStrokeWidth: HANDLE.borderStrokeWidth,
+      padding: HANDLE.padding,
       rotateAnchorOffset: HANDLE.rotateAnchorOffset / zoom,
       enabledAnchors: [...anchorsFor(elements)],
       visible: nodes.length > 0,
