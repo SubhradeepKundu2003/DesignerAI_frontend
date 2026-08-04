@@ -2,15 +2,20 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 
 import { AddElementCommand } from '../../commands/add-element.command';
 import { AddElementsCommand } from '../../commands/add-elements.command';
+import { AddGroupCommand } from '../../commands/add-group.command';
 import { CommandBus } from '../../commands/command-bus.service';
+import { CompositeCommand } from '../../commands/composite.command';
 import { INFOGRAPHIC_TEMPLATES } from '../../data/templates';
 import { INFOGRAPHICS, InfographicAsset } from '../../data/infographics.manifest';
+import { GroupElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { PAGE_MARGIN } from '../../models/editor-config';
 import { ElementFactory } from '../../services/element-factory.service';
 import { ImageUploadService } from '../../services/image-upload.service';
 import { CanvasStore } from '../../state/canvas.store';
 import { SelectionStore } from '../../state/selection.store';
+import { computeBoundingBox } from '../../utils/geometry.util';
+import { generateId } from '../../utils/id.util';
 
 /**
  * The Assets tab: a searchable library, click to place on the page.
@@ -63,6 +68,12 @@ export class AssetsPanel {
     );
   });
 
+  /**
+   * A template's parts land as one {@link GroupElement} rather than loose
+   * elements — it should move, delete and duplicate as the single infographic
+   * it visually reads as, not as N independent parts the user has to
+   * shift-click back together.
+   */
   protected placeTemplate(template: InfographicTemplate): void {
     if (this.placingId()) {
       return;
@@ -72,9 +83,33 @@ export class AssetsPanel {
       x: Math.round(Math.max(page.width - template.size.width, 0) / 2),
       y: Math.round(Math.max((page.height - template.size.height) / 2, PAGE_MARGIN)),
     };
-    const elements = template.build(origin);
-    this.commands.dispatch(new AddElementsCommand(this.canvas, elements));
-    this.selection.selectMany(elements.map((element) => element.id));
+    const built = template.build(origin);
+
+    if (built.length < 2) {
+      this.commands.dispatch(new AddElementsCommand(this.canvas, built));
+      this.selection.selectMany(built.map((element) => element.id));
+      return;
+    }
+
+    const groupId = generateId('group');
+    const elements = built.map((element) => ({ ...element, parentId: groupId }));
+    const group: GroupElement = {
+      id: groupId,
+      type: 'group',
+      name: template.label,
+      ...computeBoundingBox(elements),
+      locked: false,
+      visible: true,
+      childIds: elements.map((element) => element.id),
+    };
+
+    this.commands.dispatch(
+      new CompositeCommand(
+        [new AddElementsCommand(this.canvas, elements), new AddGroupCommand(this.canvas, group)],
+        `Add ${template.label}`,
+      ),
+    );
+    this.selection.select(groupId);
   }
 
   protected async place(asset: InfographicAsset): Promise<void> {
