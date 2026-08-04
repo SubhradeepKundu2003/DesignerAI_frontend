@@ -230,6 +230,7 @@ describe('CanvasInteractions', () => {
     it('should round a dragged node to the grid', () => {
       const node = place(shapeElement({ x: 10, y: 20, width: 50, height: 50 }));
 
+      node.fire('dragstart', { evt: pointerEvent() }, true);
       node.position({ x: 111, y: 129 });
       node.fire('dragmove', { evt: pointerEvent() }, true);
 
