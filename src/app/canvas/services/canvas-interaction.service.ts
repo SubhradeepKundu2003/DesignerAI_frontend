@@ -9,8 +9,11 @@ import { CanvasElement, ElementPatch } from '../models/canvas-element.model';
 import { Command } from '../models/commands.model';
 import { CommandBus } from '../commands/command-bus.service';
 import { GRID_SIZE, PAGE_MARGIN, SNAP_THRESHOLD } from '../models/editor-config';
+import { Point } from '../models/geometry.model';
 import { ElementNode } from '../renderers/element-renderer';
 import { GuidesRenderer } from '../renderers/guides-renderer';
+import { MarqueeRenderer } from '../renderers/marquee-renderer';
+import { boxesIntersect, computeBoundingBox } from '../utils/geometry.util';
 import { SnappingService } from './snapping.service';
 import { KeyboardShortcuts } from './keyboard-shortcuts.service';
 import { CanvasStore } from '../state/canvas.store';
@@ -46,6 +49,7 @@ export class CanvasInteractions implements OnDestroy {
   private readonly viewport = inject(ViewportStore);
   private readonly snapping = inject(SnappingService);
   private readonly guides = inject(GuidesRenderer);
+  private readonly marquee = inject(MarqueeRenderer);
 
   private stage: Konva.Stage | null = null;
   private content: Konva.Layer | null = null;
@@ -60,6 +64,13 @@ export class CanvasInteractions implements OnDestroy {
    */
   private readonly dragOrigin = new Map<ElementNode, { x: number; y: number }>();
 
+  /** World point the marquee drag started at, while one is in progress. */
+  private marqueeOrigin: Point | null = null;
+  /** Selection to add marquee hits to — the pre-drag selection on a shift-drag, empty otherwise. */
+  private marqueeBase: readonly string[] = [];
+  private readonly onMarqueeMove = (event: PointerEvent) => this.updateMarquee(event);
+  private readonly onMarqueeUp = () => this.endMarquee();
+
   attach(stage: Konva.Stage, content: Konva.Layer, transformer: Transformer): void {
     this.detach();
 
@@ -69,10 +80,12 @@ export class CanvasInteractions implements OnDestroy {
 
     // The page layer does not listen, so a click on empty paper — or on the
     // grey around it — arrives here with the stage itself as the target.
+    // The same press can turn into a marquee drag, so selection isn't
+    // resolved here — it's just where that gesture starts.
     stage.on(`pointerdown${NS}`, (event) => {
       if (event.target === stage && !this.isPanGesture(event.evt)) {
-        this.selection.clear();
         this.selection.exitGroup();
+        this.startMarquee(event.evt);
       }
     });
 
@@ -93,6 +106,7 @@ export class CanvasInteractions implements OnDestroy {
     this.stage?.off(NS);
     this.content?.off(NS);
     this.transformer?.off(NS);
+    this.endMarquee();
     this.stage = null;
     this.content = null;
     this.transformer = null;
@@ -320,6 +334,82 @@ export class CanvasInteractions implements OnDestroy {
     }
 
     return patch;
+  }
+
+  /**
+   * Starts a marquee drag from empty paper. A shift-drag adds its hits to
+   * whatever was already selected; a plain drag replaces it — matching a
+   * plain click, which is what this still is if the pointer never moves.
+   */
+  private startMarquee(event: PointerEvent): void {
+    const additive = event.shiftKey;
+    this.marqueeBase = additive ? this.selection.selectedIds() : [];
+    if (!additive) {
+      this.selection.clear();
+    }
+
+    this.marqueeOrigin = this.toWorldPoint(event);
+    window.addEventListener('pointermove', this.onMarqueeMove);
+    window.addEventListener('pointerup', this.onMarqueeUp);
+    window.addEventListener('pointercancel', this.onMarqueeUp);
+  }
+
+  /**
+   * Listens on the window rather than the stage: a drag that leaves the
+   * canvas — easy to do while sweeping toward an edge — must keep tracking
+   * the pointer, and only the window is guaranteed to still see it move.
+   */
+  private updateMarquee(event: PointerEvent): void {
+    const origin = this.marqueeOrigin;
+    if (!origin) {
+      return;
+    }
+
+    const point = this.toWorldPoint(event);
+    const box = {
+      x: Math.min(origin.x, point.x),
+      y: Math.min(origin.y, point.y),
+      width: Math.abs(point.x - origin.x),
+      height: Math.abs(point.y - origin.y),
+    };
+    this.marquee.render(box);
+
+    const hits = this.canvas
+      .elements()
+      .filter((element) => this.isSelectable(element))
+      .filter((element) => boxesIntersect(box, computeBoundingBox([element])))
+      .map((element) => this.canvas.topLevelIdOf(element.id));
+
+    this.selection.selectMany([...new Set([...this.marqueeBase, ...hits])]);
+  }
+
+  private endMarquee(): void {
+    this.marqueeOrigin = null;
+    this.marquee.clear();
+    window.removeEventListener('pointermove', this.onMarqueeMove);
+    window.removeEventListener('pointerup', this.onMarqueeUp);
+    window.removeEventListener('pointercancel', this.onMarqueeUp);
+  }
+
+  /** A locked or hidden element — including via a locked/hidden parent group — can't be marqueed. */
+  private isSelectable(element: CanvasElement): boolean {
+    const parent = element.parentId ? this.canvas.groupById(element.parentId) : undefined;
+    return element.visible && !element.locked && (!parent || (parent.visible && !parent.locked));
+  }
+
+  /** Converts a pointer event to page/world coordinates — the space element bounds live in. */
+  private toWorldPoint(event: PointerEvent): Point {
+    const stage = this.stage;
+    if (!stage) {
+      return { x: 0, y: 0 };
+    }
+
+    const bounds = stage.container().getBoundingClientRect();
+    const zoom = this.viewport.zoom();
+    return {
+      x: (event.clientX - bounds.left - this.viewport.panX()) / zoom,
+      y: (event.clientY - bounds.top - this.viewport.panY()) / zoom,
+    };
   }
 
   /**

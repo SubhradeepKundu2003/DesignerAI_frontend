@@ -14,6 +14,7 @@ import { ElementRendererRegistry } from '../../renderers/element-renderer.regist
 import { GridRenderer } from '../../renderers/grid-renderer';
 import { GuidesRenderer } from '../../renderers/guides-renderer';
 import { KonvaStageService } from '../../renderers/konva-stage.service';
+import { MarqueeRenderer } from '../../renderers/marquee-renderer';
 import { PageRenderer } from '../../renderers/page-renderer';
 import { Reconciler } from '../../renderers/reconciler';
 import { SelectionRenderer } from '../../renderers/selection-renderer';
@@ -49,6 +50,7 @@ import { TextEditOverlay } from '../text-edit-overlay/text-edit-overlay';
     Reconciler,
     SelectionRenderer,
     GuidesRenderer,
+    MarqueeRenderer,
     CanvasInteractions,
   ],
   host: {
@@ -73,6 +75,7 @@ export class CanvasWorkspace {
   private readonly reconciler = inject(Reconciler);
   private readonly selectionRenderer = inject(SelectionRenderer);
   private readonly guidesRenderer = inject(GuidesRenderer);
+  private readonly marqueeRenderer = inject(MarqueeRenderer);
   private readonly interactions = inject(CanvasInteractions);
   protected readonly shortcuts = inject(KeyboardShortcuts);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -115,6 +118,7 @@ export class CanvasWorkspace {
     this.reconciler.attach(layers.content);
     this.selectionRenderer.attach(layers.overlay);
     this.guidesRenderer.attach(layers.overlay);
+    this.marqueeRenderer.attach(layers.overlay);
 
     const stage = layers.content.getStage();
     const transformer = this.selectionRenderer.node;

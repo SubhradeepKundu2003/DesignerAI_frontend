@@ -8,6 +8,7 @@ import { CanvasElement } from '../models/canvas-element.model';
 import { ElementNode } from '../renderers/element-renderer';
 import { ElementRendererRegistry } from '../renderers/element-renderer.registry';
 import { GuidesRenderer } from '../renderers/guides-renderer';
+import { MarqueeRenderer } from '../renderers/marquee-renderer';
 import { Reconciler } from '../renderers/reconciler';
 import { CanvasStore } from '../state/canvas.store';
 import { EditorSettingsStore } from '../state/editor-settings.store';
@@ -42,6 +43,7 @@ describe('CanvasInteractions', () => {
   let content: Konva.Layer;
   let transformer: Transformer;
   let guides: GuidesRenderer;
+  let marquee: MarqueeRenderer;
   let settings: EditorSettingsStore;
 
   /** Adds `element` to the document and returns the node drawing it. */
@@ -53,7 +55,13 @@ describe('CanvasInteractions', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [CanvasInteractions, Reconciler, ElementRendererRegistry, GuidesRenderer],
+      providers: [
+        CanvasInteractions,
+        Reconciler,
+        ElementRendererRegistry,
+        GuidesRenderer,
+        MarqueeRenderer,
+      ],
     });
     interactions = TestBed.inject(CanvasInteractions);
     canvas = TestBed.inject(CanvasStore);
@@ -61,6 +69,7 @@ describe('CanvasInteractions', () => {
     history = TestBed.inject(HistoryStore);
     reconciler = TestBed.inject(Reconciler);
     guides = TestBed.inject(GuidesRenderer);
+    marquee = TestBed.inject(MarqueeRenderer);
     settings = TestBed.inject(EditorSettingsStore);
 
     stage = new Konva.Stage({ container: document.createElement('div'), width: 800, height: 600 });
@@ -71,6 +80,7 @@ describe('CanvasInteractions', () => {
     transformer = new Transformer();
     overlay.add(transformer);
     guides.attach(overlay);
+    marquee.attach(overlay);
 
     reconciler.attach(content);
     interactions.attach(stage, content, transformer);
@@ -141,6 +151,86 @@ describe('CanvasInteractions', () => {
       const node = place(element);
 
       node.fire('pointerdown', { evt: pointerEvent() }, true);
+
+      expect(selection.selectedIds()).toEqual([]);
+    });
+  });
+
+  describe('marquee selection', () => {
+    /** Presses on empty paper at `from`, drags to `to`, then releases — the window carries the drag once it starts. */
+    function marqueeDrag(
+      from: { x: number; y: number },
+      to: { x: number; y: number },
+      options: Partial<PointerEvent> = {},
+    ): void {
+      stage.fire(
+        'pointerdown',
+        { evt: pointerEvent({ clientX: from.x, clientY: from.y, ...options }) },
+        true,
+      );
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: to.x, clientY: to.y }));
+      window.dispatchEvent(new PointerEvent('pointerup'));
+    }
+
+    it('should select every element inside the dragged rectangle', () => {
+      const inside = shapeElement({ x: 0, y: 0, width: 50, height: 50 });
+      const outside = shapeElement({ x: 200, y: 200, width: 50, height: 50 });
+      place(inside);
+      place(outside);
+
+      marqueeDrag({ x: 0, y: 0 }, { x: 100, y: 100 });
+
+      expect(selection.selectedIds()).toEqual([inside.id]);
+    });
+
+    it('should add marquee hits to the selection a shift-drag started with', () => {
+      const already = shapeElement({ x: 0, y: 0, width: 50, height: 50 });
+      const swept = shapeElement({ x: 200, y: 200, width: 50, height: 50 });
+      place(already);
+      place(swept);
+      selection.select(already.id);
+
+      marqueeDrag({ x: 100, y: 100 }, { x: 250, y: 250 }, { shiftKey: true });
+
+      expect(selection.selectedIds()).toEqual([already.id, swept.id]);
+    });
+
+    it('should not select a locked element', () => {
+      place(shapeElement({ x: 0, y: 0, width: 50, height: 50, locked: true }));
+
+      marqueeDrag({ x: 0, y: 0 }, { x: 100, y: 100 });
+
+      expect(selection.selectedIds()).toEqual([]);
+    });
+
+    it('should select a grouped element as its group', () => {
+      const a = shapeElement({ x: 0, y: 0, width: 50, height: 50 });
+      const b = shapeElement({ x: 60, y: 0, width: 50, height: 50 });
+      place(a);
+      place(b);
+      canvas.groupElements(groupElement({ id: 'g1', childIds: [a.id, b.id] }), [a.id, b.id]);
+
+      marqueeDrag({ x: 0, y: 0 }, { x: 40, y: 40 });
+
+      expect(selection.selectedIds()).toEqual(['g1']);
+    });
+
+    it('should clear the selection on a plain click that never turns into a drag', () => {
+      const element = shapeElement();
+      place(element);
+      selection.select(element.id);
+
+      marqueeDrag({ x: 0, y: 0 }, { x: 0, y: 0 });
+
+      expect(selection.selectedIds()).toEqual([]);
+    });
+
+    it('should stop tracking the pointer once the drag ends', () => {
+      place(shapeElement({ x: 0, y: 0, width: 50, height: 50 }));
+
+      marqueeDrag({ x: 0, y: 0 }, { x: 100, y: 100 });
+      selection.clear();
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: 10, clientY: 10 }));
 
       expect(selection.selectedIds()).toEqual([]);
     });

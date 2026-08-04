@@ -1,5 +1,5 @@
 /**
- * Bounding-box math shared by grouping.
+ * Bounding-box math shared by grouping and marquee selection.
  *
  * Kept separate from `models/geometry.model.ts`, which only holds plain
  * shapes: this file has actual logic.
@@ -42,6 +42,13 @@ export function computeBoundingBox(boxes: readonly RotatedBox[]): Box {
   }
 
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+/** Whether two axis-aligned boxes overlap; merely touching edges don't count. */
+export function boxesIntersect(a: Box, b: Box): boolean {
+  return (
+    a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+  );
 }
 
 function corners({ x, y, width, height, rotation }: RotatedBox): { x: number; y: number }[] {
