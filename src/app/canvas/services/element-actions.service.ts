@@ -3,14 +3,16 @@ import { Injectable, computed, inject } from '@angular/core';
 import { AddGroupCommand } from '../commands/add-group.command';
 import { CommandBus } from '../commands/command-bus.service';
 import { CompositeCommand } from '../commands/composite.command';
+import { CreateFrameCommand } from '../commands/create-frame.command';
 import { DeleteElementCommand } from '../commands/delete-element.command';
 import { DeleteGroupCommand } from '../commands/delete-group.command';
+import { DissolveFrameCommand } from '../commands/dissolve-frame.command';
 import { Duplicate, DuplicateElementCommand } from '../commands/duplicate-element.command';
 import { GroupElementsCommand } from '../commands/group-elements.command';
 import { ReorderElementCommand } from '../commands/reorder-element.command';
 import { UngroupElementsCommand } from '../commands/ungroup-elements.command';
 import { UpdateElementCommand } from '../commands/update-element.command';
-import { CanvasElement, GroupElement } from '../models/canvas-element.model';
+import { CanvasElement, FrameElement, FrameLayout, GroupElement } from '../models/canvas-element.model';
 import { Command } from '../models/commands.model';
 import { ElementFactory } from './element-factory.service';
 import { CanvasStore } from '../state/canvas.store';
@@ -66,6 +68,23 @@ export class ElementActions {
   /** At least one selected id is a group. */
   readonly canUngroup = computed(() =>
     this.selection.selectedIds().some((id) => !!this.canvas.groupById(id)),
+  );
+
+  /** At least two top-level, unlocked elements are selected, none already framed. */
+  readonly canFrame = computed(() => {
+    const ids = this.selection.selectedIds();
+    if (ids.length < 2) {
+      return false;
+    }
+    return ids.every((id) => {
+      const element = this.canvas.elementById(id);
+      return !!element && !element.parentId && !element.locked && !this.canvas.frameContaining(id);
+    });
+  });
+
+  /** At least one selected id is a frame. */
+  readonly canDissolveFrame = computed(() =>
+    this.selection.selectedIds().some((id) => this.canvas.elementById(id)?.type === 'frame'),
   );
 
   /** Deletes the whole selection as one undo step — grouped selections take their group record with them. */
@@ -233,6 +252,41 @@ export class ElementActions {
     );
     this.selection.selectMany(ungroupCommands.flatMap((command) => [...command.childIds]));
     this.selection.exitGroup();
+  }
+
+  /** Wraps the selection in a new auto-arranging frame and selects it. */
+  frameSelection(layout: FrameLayout): void {
+    if (!this.canFrame()) {
+      return;
+    }
+
+    const elements = this.selection
+      .selectedIds()
+      .map((id) => this.canvas.elementById(id))
+      .filter((element): element is CanvasElement => !!element);
+
+    const command = new CreateFrameCommand(this.canvas, elements, layout);
+    this.commands.dispatch(command);
+    this.selection.select(command.frameId);
+  }
+
+  /** Dissolves every selected frame and selects their (now loose) children. */
+  dissolveFrameSelection(): void {
+    const frames = this.selection
+      .selectedIds()
+      .map((id) => this.canvas.elementById(id))
+      .filter((element): element is FrameElement => element?.type === 'frame');
+    if (frames.length === 0) {
+      return;
+    }
+
+    const dissolveCommands = frames.map((frame) => new DissolveFrameCommand(this.canvas, frame));
+    this.commands.dispatch(
+      dissolveCommands.length === 1
+        ? dissolveCommands[0]
+        : new CompositeCommand(dissolveCommands, `Dissolve ${dissolveCommands.length} frames`),
+    );
+    this.selection.selectMany(dissolveCommands.flatMap((command) => [...command.childIds]));
   }
 
   /**

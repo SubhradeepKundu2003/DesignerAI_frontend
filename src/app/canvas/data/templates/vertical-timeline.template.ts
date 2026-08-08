@@ -1,6 +1,6 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
-import { ACCENT_CYCLE, BORDER, INK, MUTED } from './palette';
+import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
 import { circle, connector, text, translate } from './template-kit';
 
 const WIDTH = 698;
@@ -24,16 +24,17 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
   const lastCy = (STEPS.length - 1) * ROW_HEIGHT + ROW_HEIGHT / 2;
 
   elements.push(
-    connector({ x: nodeCx, y: firstCy }, { x: nodeCx, y: lastCy }, { name: 'Spine', stroke: BORDER, strokeWidth: 3 }),
+    connector({ x: nodeCx, y: firstCy }, { x: nodeCx, y: lastCy }, { name: 'Spine', stroke: BORDER, strokeRef: 'border', strokeWidth: 3 }),
   );
 
   STEPS.forEach((step, i) => {
-    const accent = ACCENT_CYCLE[i % ACCENT_CYCLE.length];
+    const accentIndex = i % ACCENT_CYCLE.length;
+    const accent = ACCENT_CYCLE[accentIndex];
     const rowTop = i * ROW_HEIGHT;
     const cy = rowTop + ROW_HEIGHT / 2;
 
     elements.push(
-      circle({ x: 0, y: cy - NODE_D / 2, diameter: NODE_D, fill: accent.solid, name: `Milestone ${i + 1}` }),
+      circle({ x: 0, y: cy - NODE_D / 2, diameter: NODE_D, fill: accent.solid, fillRef: accentRef(accentIndex, 'solid'), name: `Milestone ${i + 1}` }),
       text({
         x: 0,
         y: cy - 11,
@@ -57,6 +58,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         fontSize: 16,
         fontStyle: 'bold',
         fill: INK,
+        fillRef: 'ink',
       }),
       text({
         x: NODE_D + 22,
@@ -67,6 +69,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         name: `Milestone ${i + 1} body`,
         fontSize: 13,
         fill: MUTED,
+        fillRef: 'muted',
         lineHeight: 1.35,
       }),
     );

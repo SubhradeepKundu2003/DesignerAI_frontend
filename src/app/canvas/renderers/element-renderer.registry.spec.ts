@@ -1,8 +1,15 @@
 import { TestBed } from '@angular/core/testing';
+import Konva from 'konva/lib/Core';
 import { Line } from 'konva/lib/shapes/Line';
 import { Text } from 'konva/lib/shapes/Text';
 
-import { dividerElement, shapeElement, textElement } from '../../../testing/canvas-fixtures';
+import {
+  dividerElement,
+  frameElement,
+  iconElement,
+  shapeElement,
+  textElement,
+} from '../../../testing/canvas-fixtures';
 import { ElementRendererRegistry } from './element-renderer.registry';
 
 describe('ElementRendererRegistry', () => {
@@ -78,6 +85,27 @@ describe('ElementRendererRegistry', () => {
     const dashed = registry.create(dividerElement({ dash: [6, 4] }));
     expect(dashed.getAttr('dashEnabled')).toBe(true);
     expect(dashed.getAttr('dash')).toEqual([6, 4]);
+  });
+
+  it('should draw an icon at its box size and colour', () => {
+    const node = registry.create(
+      iconElement({ iconId: 'check', fill: '#0d9488', width: 40, height: 40 }),
+    ) as Konva.Shape;
+
+    expect(node.width()).toBe(40);
+    expect(node.height()).toBe(40);
+    expect(node.getAttr('iconId')).toBe('check');
+    expect(node.fill()).toBe('#0d9488');
+  });
+
+  it('should draw a frame as its own box', () => {
+    const node = registry.create(
+      frameElement({ width: 300, height: 120, background: '#eef2ff' }),
+    ) as Konva.Shape;
+
+    expect(node.width()).toBe(300);
+    expect(node.height()).toBe(120);
+    expect(node.fill()).toBe('#eef2ff');
   });
 
   it('should update a node in place rather than rebuilding it', () => {

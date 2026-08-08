@@ -202,6 +202,14 @@ function toSwatch(element: CanvasElement, pageWidth: number, pageHeight: number)
       return { id: element.id, image: null, style: { ...style, background: element.stroke } };
     case 'image':
       return { id: element.id, image: element.src, style };
+    case 'icon':
+      return { id: element.id, image: null, style: { ...style, background: element.fill } };
+    case 'frame':
+      return {
+        id: element.id,
+        image: null,
+        style: { ...style, background: element.background ?? 'transparent' },
+      };
     case 'text':
     default:
       return { id: element.id, image: null, style: { ...style, background: 'var(--color-text-subtle)' } };

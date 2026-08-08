@@ -1,12 +1,16 @@
 import {
   CanvasElement,
   DividerElement,
-  ImageElement,
+  FrameElement,
+  FrameLayout,
+  IconElement,
   ShapeElement,
   TextElement,
 } from '../../models/canvas-element.model';
+import { ThemeColorRef } from '../../models/design-theme.model';
+import { computeFrameLayout } from '../../utils/geometry.util';
 import { generateId } from '../../utils/id.util';
-import { IconName, iconDataUrl } from './icon-svg';
+import { IconName } from '../../../shared/icons/icon-registry';
 
 /**
  * Terse builders for the element bundles in this folder — every template file
@@ -23,9 +27,11 @@ function base({ x, y, width, height, name }: Base) {
 }
 
 export function text(
-  props: Base & Partial<Omit<TextElement, keyof ReturnType<typeof base> | 'type'>> & { text: string },
+  props: Base &
+    Partial<Omit<TextElement, keyof ReturnType<typeof base> | 'type'>> & { text: string; fillRef?: ThemeColorRef },
 ): TextElement {
-  const { text: value, fontFamily, fontSize, fill, fontStyle, align, letterSpacing, lineHeight, ...rest } = props;
+  const { text: value, fontFamily, fontSize, fill, fillRef, fontStyle, align, letterSpacing, lineHeight, ...rest } =
+    props;
   return {
     ...base(rest),
     type: 'text',
@@ -33,6 +39,7 @@ export function text(
     fontFamily: fontFamily ?? 'Inter',
     fontSize: fontSize ?? 15,
     fill: fill ?? '#1c1f24',
+    fillRef,
     fontStyle: fontStyle ?? 'normal',
     align: align ?? 'left',
     letterSpacing: letterSpacing ?? 0,
@@ -41,15 +48,24 @@ export function text(
 }
 
 export function rect(
-  props: Base & { fill: string; stroke?: string; strokeWidth?: number; cornerRadius?: number },
+  props: Base & {
+    fill: string;
+    fillRef?: ThemeColorRef;
+    stroke?: string;
+    strokeRef?: ThemeColorRef;
+    strokeWidth?: number;
+    cornerRadius?: number;
+  },
 ): ShapeElement {
-  const { fill, stroke, strokeWidth, cornerRadius, ...rest } = props;
+  const { fill, fillRef, stroke, strokeRef, strokeWidth, cornerRadius, ...rest } = props;
   return {
     ...base(rest),
     type: 'shape',
     shape: 'rectangle',
     fill,
+    fillRef,
     stroke: stroke ?? 'transparent',
+    strokeRef,
     strokeWidth: strokeWidth ?? 0,
     cornerRadius: cornerRadius ?? 0,
   };
@@ -59,17 +75,21 @@ export function circle(
   props: Omit<Base, 'width' | 'height'> & {
     diameter: number;
     fill: string;
+    fillRef?: ThemeColorRef;
     stroke?: string;
+    strokeRef?: ThemeColorRef;
     strokeWidth?: number;
   },
 ): ShapeElement {
-  const { diameter, fill, stroke, strokeWidth, ...rest } = props;
+  const { diameter, fill, fillRef, stroke, strokeRef, strokeWidth, ...rest } = props;
   return {
     ...base({ ...rest, width: diameter, height: diameter }),
     type: 'shape',
     shape: 'circle',
     fill,
+    fillRef,
     stroke: stroke ?? 'transparent',
+    strokeRef,
     strokeWidth: strokeWidth ?? 0,
     cornerRadius: 0,
   };
@@ -79,7 +99,7 @@ export function circle(
 export function connector(
   from: { x: number; y: number },
   to: { x: number; y: number },
-  props: { name: string; stroke: string; strokeWidth?: number; dash?: number[] },
+  props: { name: string; stroke: string; strokeRef?: ThemeColorRef; strokeWidth?: number; dash?: number[] },
 ): DividerElement {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -92,25 +112,76 @@ export function connector(
     rotation: angle,
     type: 'divider',
     stroke: props.stroke,
+    strokeRef: props.strokeRef,
     strokeWidth,
     dash: props.dash ?? [],
   };
 }
 
-/** A small decorative icon, placed as a self-contained SVG image. */
+/**
+ * A small decorative glyph, drawn live from the shared icon set — unlike the
+ * old flattened-SVG-image approach, this is a real `IconElement`: it can be
+ * recoloured by `ApplyThemeCommand` when `fillRef` is set, and picked by an
+ * AI agent from the same finite `IconName` list the properties panel uses.
+ */
 export function icon(props: {
   x: number;
   y: number;
   size: number;
   name: IconName;
   color: string;
+  fillRef?: ThemeColorRef;
   label?: string;
-}): ImageElement {
+}): IconElement {
   return {
     ...base({ x: props.x, y: props.y, width: props.size, height: props.size, name: props.label ?? 'Icon' }),
-    type: 'image',
-    src: iconDataUrl(props.name, props.color, Math.round(props.size * 2)),
+    type: 'icon',
+    iconId: props.name,
+    fill: props.color,
+    fillRef: props.fillRef,
   };
+}
+
+/**
+ * Wraps already-built `children` in a new `FrameElement`, laying them out
+ * along one axis exactly like `CanvasStore.layoutFrame` would once the frame
+ * lands on the canvas — computed here, offline, via the same
+ * {@link computeFrameLayout} the live store uses, so a template's initial
+ * placement is pixel-identical to what dragging the frame's own gap/padding
+ * controls afterwards would produce. Returns a flat `[frame, ...children]`
+ * bundle, ready to spread into a template's element list. `children` should
+ * be authored at `x: 0, y: 0` — their final position is computed here and
+ * overwrites whatever they were built with.
+ */
+export function frame(props: {
+  x: number;
+  y: number;
+  name: string;
+  layout: FrameLayout;
+  gap: number;
+  padding: number;
+  background?: string;
+  fillRef?: ThemeColorRef;
+  children: CanvasElement[];
+}): CanvasElement[] {
+  const frameShell: FrameElement = {
+    ...base({ x: props.x, y: props.y, width: 0, height: 0, name: props.name }),
+    type: 'frame',
+    layout: props.layout,
+    gap: props.gap,
+    padding: props.padding,
+    childIds: props.children.map((child) => child.id),
+    background: props.background,
+    fillRef: props.fillRef,
+  };
+
+  const { width, height, positions } = computeFrameLayout(frameShell, props.children);
+  const positionedChildren = props.children.map((child) => {
+    const position = positions.get(child.id);
+    return position ? { ...child, ...position } : child;
+  });
+
+  return [{ ...frameShell, width, height }, ...positionedChildren];
 }
 
 /** Shifts a whole bundle by a placement offset — every builder above authors local coordinates. */

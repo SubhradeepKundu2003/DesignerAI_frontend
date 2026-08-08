@@ -8,7 +8,10 @@
  * `JSON.stringify` / `JSON.parse`.
  */
 
-export type ElementType = 'text' | 'shape' | 'divider' | 'image';
+import { IconName } from '../../shared/icons/icon-registry';
+import { ThemeColorRef } from './design-theme.model';
+
+export type ElementType = 'text' | 'shape' | 'divider' | 'image' | 'icon' | 'frame';
 
 export type ShapeKind = 'rectangle' | 'circle';
 
@@ -70,6 +73,8 @@ export interface TextElement extends BaseElement {
   fontSize: number;
   /** Text colour, any CSS colour string. */
   fill: string;
+  /** When set, `fill` is a theme colour and gets recomputed on `ApplyThemeCommand`. */
+  fillRef?: ThemeColorRef;
   fontStyle: FontStyle;
   align: TextAlign;
   /** Extra space between characters, in px. */
@@ -82,7 +87,11 @@ export interface ShapeElement extends BaseElement {
   readonly type: 'shape';
   shape: ShapeKind;
   fill: string;
+  /** When set, `fill` is a theme colour and gets recomputed on `ApplyThemeCommand`. */
+  fillRef?: ThemeColorRef;
   stroke: string;
+  /** When set, `stroke` is a theme colour and gets recomputed on `ApplyThemeCommand`. */
+  strokeRef?: ThemeColorRef;
   strokeWidth: number;
   /** Rectangles only; ignored when `shape` is `circle`. */
   cornerRadius: number;
@@ -91,6 +100,8 @@ export interface ShapeElement extends BaseElement {
 export interface DividerElement extends BaseElement {
   readonly type: 'divider';
   stroke: string;
+  /** When set, `stroke` is a theme colour and gets recomputed on `ApplyThemeCommand`. */
+  strokeRef?: ThemeColorRef;
   strokeWidth: number;
   /** Dash pattern, e.g. `[6, 4]`. An empty array renders a solid line. */
   dash: number[];
@@ -103,11 +114,69 @@ export interface ImageElement extends BaseElement {
 }
 
 /**
+ * A single-colour decorative glyph from the shared icon set (see
+ * `shared/icons/icon-registry.ts`), drawn live rather than baked into a
+ * flattened `ImageElement` — so a theme swap can recolour it, and an AI
+ * agent can pick it by id from a known, finite list.
+ *
+ * Square by convention: `width`/`height` (from `BaseElement`) are kept equal
+ * by whatever creates or resizes one, the same way a circle `ShapeElement`
+ * is just a square box with a round `sceneFunc` — there is no separate
+ * `size` field to fall out of sync with the box the transformer drags.
+ */
+export interface IconElement extends BaseElement {
+  readonly type: 'icon';
+  iconId: IconName;
+  fill: string;
+  /** When set, `fill` is a theme colour and gets recomputed on `ApplyThemeCommand`. */
+  fillRef?: ThemeColorRef;
+}
+
+export type FrameLayout = 'row' | 'column';
+
+/**
+ * An auto-arranging container: `childIds` lay out along one axis with a
+ * `gap`, inset from the frame's own box by `padding` — a minimal flexbox.
+ *
+ * Distinct from {@link GroupElement}: a group's box is a *derived* bounding
+ * box of freely-positioned members, recomputed after the fact. A frame is
+ * the other way round — it *owns* its children's `x`/`y`/`width`/`height`,
+ * recomputing them from `layout`/`gap`/`padding` whenever any of those or the
+ * child list changes (see `CanvasStore.layoutFrame`). Children stay ordinary
+ * top-level entries in `Page.elements`, exactly like a group's members, so
+ * every other command (delete, duplicate, reorder) keeps working unmodified.
+ *
+ * Known v1 gap: dragging a frame *does* correctly re-flow its children once
+ * the drag commits (`CanvasStore.patchElement` re-lays-out a patched frame),
+ * but they do not visually follow the frame node during the drag itself —
+ * `CanvasInteractionService`'s live drag-follow only tracks the transformer's
+ * own selected nodes. Selecting the frame's children along with it works
+ * around this today; teaching drag-follow about frame membership is a
+ * fast-follow, not required for the layout engine itself to be correct.
+ */
+export interface FrameElement extends BaseElement {
+  readonly type: 'frame';
+  layout: FrameLayout;
+  gap: number;
+  padding: number;
+  childIds: string[];
+  background?: string;
+  /** When set, `background` is a theme colour and gets recomputed on `ApplyThemeCommand`. */
+  fillRef?: ThemeColorRef;
+}
+
+/**
  * Discriminated union of everything that can live on a page. Switching on
  * `type` gives exhaustive checking in renderers and the properties panel, so
  * adding a new element type surfaces every place that must handle it.
  */
-export type CanvasElement = TextElement | ShapeElement | DividerElement | ImageElement;
+export type CanvasElement =
+  | TextElement
+  | ShapeElement
+  | DividerElement
+  | ImageElement
+  | IconElement
+  | FrameElement;
 
 /** The element of the union carrying a given `type`. */
 export type ElementOfType<K extends ElementType> = Extract<CanvasElement, { type: K }>;
@@ -139,4 +208,12 @@ export function isDividerElement(element: CanvasElement): element is DividerElem
 
 export function isImageElement(element: CanvasElement): element is ImageElement {
   return element.type === 'image';
+}
+
+export function isIconElement(element: CanvasElement): element is IconElement {
+  return element.type === 'icon';
+}
+
+export function isFrameElement(element: CanvasElement): element is FrameElement {
+  return element.type === 'frame';
 }

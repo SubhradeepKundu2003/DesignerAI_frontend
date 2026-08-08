@@ -17,6 +17,10 @@
         <app-divider-properties [element]="divider" [disabled]="disabled()" />
       } @else if (imageElement(); as image) {
         <app-image-properties [element]="image" [disabled]="disabled()" />
+      } @else if (iconElement(); as icon) {
+        <app-icon-properties [element]="icon" [disabled]="disabled()" />
+      } @else if (frameElement(); as frame) {
+        <app-frame-properties [element]="frame" [disabled]="disabled()" />
       }
 
       @if (disabled()) {

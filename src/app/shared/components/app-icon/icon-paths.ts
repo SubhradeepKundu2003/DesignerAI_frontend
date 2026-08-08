@@ -165,6 +165,23 @@ export const ICON_PATHS = {
   rotate: [path('M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'), path('M21 3v5h-5')],
   cursor: [path('m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z')],
   chevronDown: [path('m6 9 6 6 6-6')],
+  sparkle: [
+    path('M12 3v4'),
+    path('M12 17v4'),
+    path('M3 12h4'),
+    path('M17 12h4'),
+    { kind: 'circle', cx: 12, cy: 12, r: 3 },
+  ],
+  frame: [
+    { kind: 'rect', x: 3, y: 7, width: 8, height: 10, rx: 1.5 },
+    { kind: 'rect', x: 13, y: 7, width: 8, height: 10, rx: 1.5 },
+  ],
+  ungroupFrame: [
+    { kind: 'rect', x: 3, y: 4, width: 7, height: 7, rx: 1.5 },
+    { kind: 'rect', x: 14, y: 13, width: 7, height: 7, rx: 1.5 },
+    path('M10 7.5h4'),
+    path('M17 10.5v4'),
+  ],
 } as const satisfies Record<string, readonly IconShape[]>;
 
 export type IconName = keyof typeof ICON_PATHS;

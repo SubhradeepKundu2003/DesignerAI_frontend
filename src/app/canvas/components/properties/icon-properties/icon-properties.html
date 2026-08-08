@@ -1,0 +1,18 @@
+<app-panel-section title="Icon">
+  <app-select-input
+    label="Glyph"
+    [value]="element().iconId"
+    [options]="iconOptions"
+    [disabled]="disabled()"
+    (valueChange)="setIcon($event)"
+  />
+
+  <app-color-input
+    label="Colour"
+    [value]="element().fill"
+    [disabled]="disabled()"
+    (focusin)="beginGesture()"
+    (focusout)="endGesture()"
+    (valueChange)="setFill($event)"
+  />
+</app-panel-section>

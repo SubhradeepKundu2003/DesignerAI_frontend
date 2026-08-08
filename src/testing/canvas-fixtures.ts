@@ -1,6 +1,8 @@
 import {
   DividerElement,
+  FrameElement,
   GroupElement,
+  IconElement,
   ImageElement,
   ShapeElement,
   TextElement,
@@ -78,6 +80,28 @@ export function imageElement(overrides: Partial<ImageElement> = {}): ImageElemen
     ...baseElement('Image'),
     type: 'image',
     src: 'data:image/png;base64,stub',
+    ...overrides,
+  };
+}
+
+export function iconElement(overrides: Partial<IconElement> = {}): IconElement {
+  return {
+    ...baseElement('Icon'),
+    type: 'icon',
+    iconId: 'star',
+    fill: '#4f46e5',
+    ...overrides,
+  };
+}
+
+export function frameElement(overrides: Partial<FrameElement> = {}): FrameElement {
+  return {
+    ...baseElement('Frame'),
+    type: 'frame',
+    layout: 'row',
+    gap: 20,
+    padding: 20,
+    childIds: [],
     ...overrides,
   };
 }

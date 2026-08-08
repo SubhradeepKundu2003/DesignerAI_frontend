@@ -3,6 +3,8 @@ import { Injectable } from '@angular/core';
 import { CanvasElement, ElementOfType, ElementType } from '../models/canvas-element.model';
 import { DividerRenderer } from './divider.renderer';
 import { ElementNode, ElementRenderer } from './element-renderer';
+import { FrameRenderer } from './frame.renderer';
+import { IconRenderer } from './icon.renderer';
 import { ImageRenderer } from './image.renderer';
 import { ShapeRenderer } from './shape.renderer';
 import { TextRenderer } from './text.renderer';
@@ -26,6 +28,8 @@ export class ElementRendererRegistry {
     shape: new ShapeRenderer(),
     divider: new DividerRenderer(),
     image: new ImageRenderer(),
+    icon: new IconRenderer(),
+    frame: new FrameRenderer(),
   };
 
   create(element: CanvasElement): ElementNode {

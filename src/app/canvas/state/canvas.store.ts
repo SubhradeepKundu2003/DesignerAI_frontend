@@ -2,8 +2,10 @@ import { Injectable, computed, signal } from '@angular/core';
 
 import { CANVAS_DOCUMENT_VERSION, CanvasDocument, Page } from '../models/canvas-document.model';
 import { CanvasElement, ElementPatch, GroupElement } from '../models/canvas-element.model';
+import { DEFAULT_THEME } from '../data/design-themes';
+import { DesignTheme } from '../models/design-theme.model';
 import { PAGE_BACKGROUND, PAGE_SIZE } from '../models/editor-config';
-import { computeBoundingBox } from '../utils/geometry.util';
+import { computeBoundingBox, computeFrameLayout } from '../utils/geometry.util';
 import { generateId } from '../utils/id.util';
 
 /** Patch a group's own fields — never its `childIds`, which only grouping/ungrouping change. */
@@ -50,6 +52,9 @@ export class CanvasStore {
   private readonly activePageId = signal<string>(this.state().pages[0].id);
 
   readonly document = this.state.asReadonly();
+
+  /** The project's active theme, defaulting for documents saved before theming existed. */
+  readonly theme = computed<DesignTheme>(() => this.state().theme ?? DEFAULT_THEME);
 
   readonly pages = computed<readonly Page[]>(() => this.state().pages);
 
@@ -154,6 +159,7 @@ export class CanvasStore {
       return;
     }
     let parentId: string | undefined;
+    let isFrame = false;
     this.updatePageElements(owner.id, (elements) => {
       const index = elements.findIndex((element) => element.id === id);
       if (index === -1) {
@@ -165,6 +171,7 @@ export class CanvasStore {
       // is what keeps this cast honest.
       next[index] = { ...next[index], ...patch } as CanvasElement;
       parentId = next[index].parentId;
+      isFrame = next[index].type === 'frame';
       return next;
     });
 
@@ -174,6 +181,15 @@ export class CanvasStore {
     // above: groups live in a different array than elements.
     if (parentId) {
       this.recomputeGroupBox(parentId);
+    }
+
+    // Same idea for a frame patched directly (its own `gap`/`padding`/`layout`
+    // changing in the properties panel): re-flow its children to match.
+    // Deliberately *not* triggered by a child being patched — dragging or
+    // resizing a framed child stays free-form; only the frame's own controls,
+    // or `CreateFrameCommand`/`DissolveFrameCommand`, ever move a child.
+    if (isFrame) {
+      this.layoutFrame(id);
     }
   }
 
@@ -189,6 +205,56 @@ export class CanvasStore {
       return;
     }
     this.patchGroup(groupId, computeBoundingBox(children));
+  }
+
+  /**
+   * Re-flows a frame's children along its axis, inset by `padding` and spaced
+   * by `gap`, then resizes the frame itself to hug that content — a minimal
+   * flexbox. Cross-axis children are centred; the main axis is stacked from
+   * the frame's own `x`/`y`.
+   */
+  layoutFrame(frameId: string): void {
+    const owner = this.pageOf(frameId);
+    const frame = owner?.elements.find((element) => element.id === frameId);
+    if (!owner || !frame || frame.type !== 'frame') {
+      return;
+    }
+
+    const children = frame.childIds
+      .map((childId) => owner.elements.find((element) => element.id === childId))
+      .filter((element): element is CanvasElement => !!element);
+
+    const { width, height, positions } = computeFrameLayout(frame, children);
+
+    this.updatePageElements(owner.id, (elements) =>
+      elements.map((element) => {
+        if (element.id === frameId) {
+          return element.width === width && element.height === height
+            ? element
+            : ({ ...element, width, height } as CanvasElement);
+        }
+        const position = positions.get(element.id);
+        return position && (position.x !== element.x || position.y !== element.y)
+          ? { ...element, ...position }
+          : element;
+      }),
+    );
+
+    // A child that is itself a frame only had its own box moved above —
+    // `layoutFrame` only ever repositions *direct* children, so a nested
+    // frame needs this cascade to re-flow its own children to the new spot.
+    for (const child of children) {
+      if (child.type === 'frame') {
+        this.layoutFrame(child.id);
+      }
+    }
+  }
+
+  /** The frame on `id`'s page that lists it as a child, if any. */
+  frameContaining(id: string): CanvasElement | undefined {
+    return this.pageOf(id)?.elements.find(
+      (element) => element.type === 'frame' && element.childIds.includes(id),
+    );
   }
 
   /** Moves an element to `toIndex` in paint order (bring forward / send back). */
@@ -284,6 +350,11 @@ export class CanvasStore {
   replaceDocument(document: CanvasDocument): void {
     this.state.set(document);
     this.activePageId.set(document.pages[0]?.id ?? '');
+  }
+
+  /** Sets the project's active theme. Commands only; see {@link ApplyThemeCommand}. */
+  setTheme(theme: DesignTheme | undefined): void {
+    this.state.update((document) => ({ ...document, theme }));
   }
 
   // --- Page mutators. Commands only. ----------------------------------------

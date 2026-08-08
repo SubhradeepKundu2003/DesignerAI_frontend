@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { groupElement, shapeElement, textElement } from '../../../testing/canvas-fixtures';
+import { frameElement, groupElement, shapeElement, textElement } from '../../../testing/canvas-fixtures';
 import { Page } from '../models/canvas-document.model';
 import { PAGE_SIZE } from '../models/editor-config';
 import { CanvasStore } from './canvas.store';
@@ -265,6 +265,124 @@ describe('CanvasStore', () => {
       store.patchGroup('g1', { name: 'Renamed', locked: true });
 
       expect(store.groupById('g1')).toMatchObject({ name: 'Renamed', locked: true });
+    });
+  });
+
+  describe('layoutFrame', () => {
+    it('should stack children left-to-right, centred on the cross axis, and hug the frame to fit', () => {
+      const a = shapeElement({ width: 100, height: 60 });
+      const b = shapeElement({ width: 100, height: 40 });
+      store.insertElement(a);
+      store.insertElement(b);
+      const frame = frameElement({
+        id: 'f1',
+        x: 10,
+        y: 10,
+        layout: 'row',
+        gap: 20,
+        padding: 10,
+        childIds: [a.id, b.id],
+      });
+      store.insertElement(frame);
+
+      store.layoutFrame('f1');
+
+      // content width: 100 + 20 + 100 = 220, plus 10px padding each side.
+      expect(store.elementById('f1')).toMatchObject({ width: 240, height: 80 });
+      expect(store.elementById(a.id)).toMatchObject({ x: 20, y: 20 });
+      // b is shorter (40 vs the row's 60px content height), so it centres: 10 + 10 + (60-40)/2.
+      expect(store.elementById(b.id)).toMatchObject({ x: 140, y: 30 });
+    });
+
+    it('should stack children top-to-bottom for a column layout', () => {
+      const a = shapeElement({ width: 50, height: 30 });
+      const b = shapeElement({ width: 80, height: 30 });
+      store.insertElement(a);
+      store.insertElement(b);
+      const frame = frameElement({
+        id: 'f1',
+        x: 0,
+        y: 0,
+        layout: 'column',
+        gap: 10,
+        padding: 0,
+        childIds: [a.id, b.id],
+      });
+      store.insertElement(frame);
+
+      store.layoutFrame('f1');
+
+      expect(store.elementById('f1')).toMatchObject({ width: 80, height: 70 });
+      // a is narrower than the column's 80px content width, so it centres horizontally.
+      expect(store.elementById(a.id)).toMatchObject({ x: 15, y: 0 });
+      expect(store.elementById(b.id)).toMatchObject({ x: 0, y: 40 });
+    });
+
+    it('should re-flow when the frame itself is patched', () => {
+      const a = shapeElement({ width: 100, height: 50 });
+      store.insertElement(a);
+      const frame = frameElement({ id: 'f1', x: 0, y: 0, padding: 5, childIds: [a.id] });
+      store.insertElement(frame);
+      store.layoutFrame('f1');
+      expect(store.elementById(a.id)).toMatchObject({ x: 5, y: 5 });
+
+      store.patchElement('f1', { padding: 20 });
+
+      expect(store.elementById(a.id)).toMatchObject({ x: 20, y: 20 });
+      expect(store.elementById('f1')).toMatchObject({ width: 140, height: 90 });
+    });
+
+    it('should not move siblings when a child is patched directly', () => {
+      const a = shapeElement({ width: 100, height: 50 });
+      const b = shapeElement({ width: 100, height: 50 });
+      store.insertElement(a);
+      store.insertElement(b);
+      const frame = frameElement({ id: 'f1', x: 0, y: 0, childIds: [a.id, b.id] });
+      store.insertElement(frame);
+      store.layoutFrame('f1');
+      const before = store.elementById(b.id);
+
+      store.patchElement(a.id, { x: 999, y: 999 });
+
+      expect(store.elementById(b.id)).toMatchObject({ x: before?.x, y: before?.y });
+    });
+
+    it('should cascade into a nested frame when its parent moves it', () => {
+      const leaf = shapeElement({ width: 40, height: 40 });
+      store.insertElement(leaf);
+      const inner = frameElement({ id: 'inner', x: 0, y: 0, padding: 5, childIds: [leaf.id] });
+      store.insertElement(inner);
+      store.layoutFrame('inner');
+      const outer = frameElement({
+        id: 'outer',
+        x: 0,
+        y: 0,
+        layout: 'row',
+        padding: 0,
+        gap: 30,
+        childIds: ['spacer', 'inner'],
+      });
+      const spacer = shapeElement({ id: 'spacer', width: 60, height: 60 });
+      store.insertElement(spacer);
+      store.insertElement(outer);
+
+      store.layoutFrame('outer');
+
+      // inner's box moves to sit after the spacer + gap...
+      const innerAfter = store.elementById('inner');
+      expect(innerAfter).toMatchObject({ x: 90 });
+      // ...and its own child follows, inset by inner's own padding.
+      expect(store.elementById(leaf.id)).toMatchObject({ x: (innerAfter as { x: number }).x + 5 });
+    });
+
+    it('should find the frame that lists an id as a child', () => {
+      const a = shapeElement();
+      store.insertElement(a);
+      const frame = frameElement({ id: 'f1', childIds: [a.id] });
+      store.insertElement(frame);
+
+      expect(store.frameContaining(a.id)?.id).toBe('f1');
+      expect(store.frameContaining('missing')).toBeUndefined();
     });
   });
 });

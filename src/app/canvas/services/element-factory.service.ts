@@ -4,6 +4,7 @@ import {
   BaseElement,
   CanvasElement,
   DividerElement,
+  IconElement,
   ImageElement,
   ShapeElement,
   ShapeKind,
@@ -13,9 +14,10 @@ import { PAGE_MARGIN } from '../models/editor-config';
 import { Size } from '../models/geometry.model';
 import { CanvasStore } from '../state/canvas.store';
 import { generateId } from '../utils/id.util';
+import { IconName } from '../../shared/icons/icon-registry';
 
 /** What the sidebar's Insert section can create without further input. */
-export type InsertKind = 'text' | 'rectangle' | 'circle' | 'divider';
+export type InsertKind = 'text' | 'rectangle' | 'circle' | 'divider' | 'icon';
 
 /**
  * Style and size an element starts life with. Kept here rather than in
@@ -46,6 +48,10 @@ const DEFAULTS = {
     /** Largest an uploaded image may be placed at, as a share of the safe area. */
     maxScale: 1,
   },
+  icon: {
+    iconId: 'star' as IconName,
+    size: 48,
+  },
 } as const;
 
 /** Each new element is nudged this far from the last, so they never hide. */
@@ -73,6 +79,8 @@ export class ElementFactory {
         return this.createShape('circle');
       case 'divider':
         return this.createDivider();
+      case 'icon':
+        return this.createIcon();
     }
   }
 
@@ -128,6 +136,20 @@ export class ElementFactory {
     };
   }
 
+  /** New icons pick up the theme's first accent by default, like a template would. */
+  createIcon(): IconElement {
+    const { iconId, size } = DEFAULTS.icon;
+    const accent = this.canvas.theme().colors.accents[0];
+
+    return {
+      ...this.base('Icon', { width: size, height: size }),
+      type: 'icon',
+      iconId,
+      fill: accent?.solid ?? '#1c1f24',
+      fillRef: accent ? 'accent-0-solid' : undefined,
+    };
+  }
+
   /** Places an uploaded image, scaled down to fit the safe area if oversized. */
   createImage(src: string, natural: Size): ImageElement {
     return {
@@ -145,6 +167,16 @@ export class ElementFactory {
   duplicate(element: CanvasElement): CanvasElement {
     const copy = structuredClone(element) as CanvasElement;
     const base = copy.name.replace(/ \d+$/, '');
+
+    if (copy.type === 'frame') {
+      // A duplicated frame does not duplicate its children — those were not
+      // part of this selection, so cloning `childIds` verbatim would make the
+      // copy claim ownership of the *original* frame's children instead of
+      // starting empty. `ElementActions.duplicateSelection` has no frame-aware
+      // remapping today (unlike its group handling); this is the safe default
+      // until it does.
+      copy.childIds = [];
+    }
 
     return {
       ...copy,

@@ -51,6 +51,13 @@
       [disabled]="!canUngroup()"
       (activated)="ungroup()"
     />
+    <app-icon-button icon="frame" label="Frame" [disabled]="!canFrame()" (activated)="frame()" />
+    <app-icon-button
+      icon="ungroupFrame"
+      label="Dissolve frame"
+      [disabled]="!canDissolveFrame()"
+      (activated)="dissolveFrame()"
+    />
   </div>
 
   <span class="toolbar__divider" role="separator"></span>
@@ -69,6 +76,20 @@
       (activated)="sendBackward()"
     />
   </div>
+
+  <label class="toolbar__theme">
+    <span class="toolbar__theme-label">Theme</span>
+    <select
+      class="toolbar__theme-select"
+      aria-label="Theme"
+      [value]="activeThemeId()"
+      (change)="setTheme($any($event.target).value)"
+    >
+      @for (preset of themePresets; track preset.id) {
+        <option [value]="preset.id">{{ preset.name }}</option>
+      }
+    </select>
+  </label>
 
   <span class="toolbar__spacer"></span>
 

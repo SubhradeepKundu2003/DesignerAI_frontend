@@ -56,6 +56,7 @@ describe('EditorSidebar', () => {
       'Rectangle',
       'Circle',
       'Divider',
+      'Icon',
       'Image',
     ]);
   });

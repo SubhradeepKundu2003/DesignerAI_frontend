@@ -93,7 +93,9 @@ export class TextProperties {
   }
 
   protected setFill(fill: string): void {
-    this.patch({ fill }, 'Change text colour');
+    // A hand-picked colour detaches the element from the theme — otherwise the
+    // next `ApplyThemeCommand` would silently overwrite what the user just set.
+    this.patch({ fill, fillRef: undefined }, 'Change text colour');
   }
 
   protected toggleBold(): void {

@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
+import { ApplyThemeCommand } from '../../canvas/commands/apply-theme.command';
 import { CommandBus } from '../../canvas/commands/command-bus.service';
 import { ElementActions } from '../../canvas/services/element-actions.service';
 import { PersistenceService } from '../../canvas/services/persistence.service';
+import { CanvasStore } from '../../canvas/state/canvas.store';
 import { EditorSettingsStore } from '../../canvas/state/editor-settings.store';
+import { ThemeStore } from '../../canvas/state/theme.store';
 import { ViewportStore } from '../../canvas/state/viewport.store';
 import { IconButton } from '../../shared/components/icon-button/icon-button';
 
@@ -21,6 +24,11 @@ export class EditorToolbar {
   private readonly commands = inject(CommandBus);
   private readonly actions = inject(ElementActions);
   private readonly persistence = inject(PersistenceService);
+  private readonly canvas = inject(CanvasStore);
+  private readonly theme = inject(ThemeStore);
+
+  protected readonly themePresets = this.theme.presets;
+  protected readonly activeThemeId = computed(() => this.theme.activeTheme().id);
 
   protected readonly gridVisible = this.settings.gridVisible;
   protected readonly snapEnabled = this.settings.snapEnabled;
@@ -35,6 +43,8 @@ export class EditorToolbar {
   protected readonly canSendBackward = this.actions.canSendBackward;
   protected readonly canGroup = this.actions.canGroup;
   protected readonly canUngroup = this.actions.canUngroup;
+  protected readonly canFrame = this.actions.canFrame;
+  protected readonly canDissolveFrame = this.actions.canDissolveFrame;
 
   protected readonly canLoad = this.persistence.hasSave;
   protected readonly justSaved = this.persistence.justSaved;
@@ -75,6 +85,15 @@ export class EditorToolbar {
     this.actions.ungroupSelection();
   }
 
+  /** The one-button toolbar action always frames in a row; a column frame starts by switching the direction in the properties panel. */
+  protected frame(): void {
+    this.actions.frameSelection('row');
+  }
+
+  protected dissolveFrame(): void {
+    this.actions.dissolveFrameSelection();
+  }
+
   protected toggleGrid(): void {
     this.settings.toggleGrid();
   }
@@ -89,6 +108,13 @@ export class EditorToolbar {
 
   protected load(): void {
     this.persistence.load();
+  }
+
+  protected setTheme(id: string): void {
+    const theme = this.themePresets.find((preset) => preset.id === id);
+    if (theme && theme.id !== this.activeThemeId()) {
+      this.commands.dispatch(new ApplyThemeCommand(this.canvas, theme));
+    }
   }
 }
 

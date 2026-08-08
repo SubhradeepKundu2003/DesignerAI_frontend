@@ -51,6 +51,62 @@ export function boxesIntersect(a: Box, b: Box): boolean {
   );
 }
 
+interface FrameLayoutInput {
+  x: number;
+  y: number;
+  layout: 'row' | 'column';
+  gap: number;
+  padding: number;
+}
+
+interface FrameChildBox {
+  id: string;
+  width: number;
+  height: number;
+}
+
+export interface FrameLayoutResult {
+  width: number;
+  height: number;
+  positions: ReadonlyMap<string, { x: number; y: number }>;
+}
+
+/**
+ * The flexbox-lite math behind `FrameElement`: stacks `children` along one
+ * axis, inset by `padding` and spaced by `gap`, centring the cross axis —
+ * pure so both the live `CanvasStore.layoutFrame` and offline template
+ * builders (which need a frame's final geometry before any element is added
+ * to the document) share one implementation instead of two that can drift.
+ */
+export function computeFrameLayout(frame: FrameLayoutInput, children: readonly FrameChildBox[]): FrameLayoutResult {
+  const isRow = frame.layout === 'row';
+  const main = (child: FrameChildBox) => (isRow ? child.width : child.height);
+  const cross = (child: FrameChildBox) => (isRow ? child.height : child.width);
+
+  const contentMain = children.length
+    ? children.reduce((sum, child) => sum + main(child), 0) + frame.gap * (children.length - 1)
+    : 0;
+  const contentCross = children.reduce((max, child) => Math.max(max, cross(child)), 0);
+
+  const width = isRow ? contentMain + frame.padding * 2 : contentCross + frame.padding * 2;
+  const height = isRow ? contentCross + frame.padding * 2 : contentMain + frame.padding * 2;
+
+  const positions = new Map<string, { x: number; y: number }>();
+  let offset = frame.padding;
+  for (const child of children) {
+    const centering = (contentCross - cross(child)) / 2;
+    positions.set(
+      child.id,
+      isRow
+        ? { x: frame.x + offset, y: frame.y + frame.padding + centering }
+        : { x: frame.x + frame.padding + centering, y: frame.y + offset },
+    );
+    offset += main(child) + frame.gap;
+  }
+
+  return { width, height, positions };
+}
+
 function corners({ x, y, width, height, rotation }: RotatedBox): { x: number; y: number }[] {
   const radians = (rotation * Math.PI) / 180;
   const cos = Math.cos(radians);

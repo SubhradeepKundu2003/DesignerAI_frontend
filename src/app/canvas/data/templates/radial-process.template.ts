@@ -1,6 +1,6 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
-import { ACCENT_CYCLE, INK, MUTED } from './palette';
+import { ACCENT_CYCLE, INK, MUTED, accentRef } from './palette';
 import { circle, connector, icon, rect, text, translate } from './template-kit';
 import { IconName } from './icon-svg';
 
@@ -30,7 +30,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
   const elements: CanvasElement[] = [];
 
   elements.push(
-    circle({ x: 0, y: HUB.cy - HUB.r, diameter: HUB.r * 2, fill: INK, name: 'Hub' }),
+    circle({ x: 0, y: HUB.cy - HUB.r, diameter: HUB.r * 2, fill: INK, fillRef: 'ink', name: 'Hub' }),
     text({
       x: HUB.cx - 75,
       y: HUB.cy - 25,
@@ -55,8 +55,8 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
 
     elements.push(
       connector(from, badgeCenter, { name: `Connector ${i + 1}`, stroke: '#c7ccd6', strokeWidth: 2 }),
-      rect({ x: BAR.x, y: barY, width: BAR.width, height: BAR.height, fill: accent.tint, cornerRadius: BAR.cornerRadius, name: `Step ${i + 1} bar` }),
-      circle({ x: badgeCenter.x - 24, y: badgeCenter.y - 24, diameter: 48, fill: accent.solid, name: `Step ${i + 1} number` }),
+      rect({ x: BAR.x, y: barY, width: BAR.width, height: BAR.height, fill: accent.tint, fillRef: accentRef(i, 'tint'), cornerRadius: BAR.cornerRadius, name: `Step ${i + 1} bar` }),
+      circle({ x: badgeCenter.x - 24, y: badgeCenter.y - 24, diameter: 48, fill: accent.solid, fillRef: accentRef(i, 'solid'), name: `Step ${i + 1} number` }),
       text({
         x: badgeCenter.x - 24,
         y: badgeCenter.y - 13,
@@ -70,7 +70,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         fill: '#ffffff',
         lineHeight: 1.2,
       }),
-      icon({ x: BAR.x + 20, y: barY + (BAR.height - 28) / 2, size: 28, name: step.iconName, color: accent.solid, label: `Step ${i + 1} icon` }),
+      icon({ x: BAR.x + 20, y: barY + (BAR.height - 28) / 2, size: 28, name: step.iconName, color: accent.solid, fillRef: accentRef(i, 'solid'), label: `Step ${i + 1} icon` }),
       text({
         x: BAR.x + 62,
         y: barY + 12,
@@ -81,6 +81,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         fontSize: 15,
         fontStyle: 'bold',
         fill: INK,
+        fillRef: 'ink',
         lineHeight: 1.2,
       }),
       text({
@@ -92,6 +93,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         name: `Step ${i + 1} body`,
         fontSize: 13,
         fill: MUTED,
+        fillRef: 'muted',
         lineHeight: 1.3,
       }),
     );

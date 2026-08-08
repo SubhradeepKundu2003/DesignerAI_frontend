@@ -1,6 +1,6 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
-import { ACCENT_CYCLE, BORDER, INK, MUTED } from './palette';
+import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
 import { circle, connector, text, translate } from './template-kit';
 
 const WIDTH = 698;
@@ -23,7 +23,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
   const elements: CanvasElement[] = [];
 
   elements.push(
-    connector({ x: NODE_X[0], y: CENTER_Y }, { x: NODE_X[3], y: CENTER_Y }, { name: 'Spine', stroke: BORDER, strokeWidth: 3 }),
+    connector({ x: NODE_X[0], y: CENTER_Y }, { x: NODE_X[3], y: CENTER_Y }, { name: 'Spine', stroke: BORDER, strokeRef: 'border', strokeWidth: 3 }),
   );
 
   STEPS.forEach((step, i) => {
@@ -35,8 +35,8 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
     const stubTo = { x: cx, y: above ? calloutY + CALLOUT.height : calloutY };
 
     elements.push(
-      connector(stubFrom, stubTo, { name: `Stub ${i + 1}`, stroke: accent.solid, strokeWidth: 2 }),
-      circle({ x: cx - NODE_D / 2, y: CENTER_Y - NODE_D / 2, diameter: NODE_D, fill: accent.solid, name: `Node ${i + 1}` }),
+      connector(stubFrom, stubTo, { name: `Stub ${i + 1}`, stroke: accent.solid, strokeRef: accentRef(i, 'solid'), strokeWidth: 2 }),
+      circle({ x: cx - NODE_D / 2, y: CENTER_Y - NODE_D / 2, diameter: NODE_D, fill: accent.solid, fillRef: accentRef(i, 'solid'), name: `Node ${i + 1}` }),
       text({
         x: cx - NODE_D / 2,
         y: CENTER_Y - 13,
@@ -61,6 +61,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         fontStyle: 'bold',
         align: 'center',
         fill: INK,
+        fillRef: 'ink',
       }),
       text({
         x: cx - CALLOUT.width / 2,
@@ -72,6 +73,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         fontSize: 12.5,
         align: 'center',
         fill: MUTED,
+        fillRef: 'muted',
         lineHeight: 1.3,
       }),
     );

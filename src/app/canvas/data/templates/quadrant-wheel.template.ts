@@ -1,7 +1,7 @@
 import { CanvasElement, ImageElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName, iconDataUrl } from './icon-svg';
-import { ACCENT_CYCLE, BORDER, INK, MUTED } from './palette';
+import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
 import { generateId } from '../../utils/id.util';
 import { rect, text, translate } from './template-kit';
 
@@ -112,6 +112,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         height: CALLOUT.height,
         fill: 'transparent',
         stroke: accent.solid,
+        strokeRef: accentRef(callout.wedge, 'solid'),
         strokeWidth: 1.5,
         cornerRadius: 50,
         name: `Callout ${i + 1}`,
@@ -126,6 +127,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         fontSize: 15,
         fontStyle: 'bold',
         fill: accent.solid,
+        fillRef: accentRef(callout.wedge, 'solid'),
       }),
       text({
         x: x + 20,
@@ -136,6 +138,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
         name: `Callout ${i + 1} body`,
         fontSize: 12.5,
         fill: MUTED,
+        fillRef: 'muted',
         lineHeight: 1.35,
       }),
     );

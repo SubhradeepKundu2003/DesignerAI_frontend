@@ -48,6 +48,7 @@ export class EditorSidebar {
     { kind: 'rectangle', icon: 'square', label: 'Rectangle' },
     { kind: 'circle', icon: 'circle', label: 'Circle' },
     { kind: 'divider', icon: 'divider', label: 'Divider' },
+    { kind: 'icon', icon: 'sparkle', label: 'Icon' },
   ];
 
   protected insert(kind: InsertKind): void {

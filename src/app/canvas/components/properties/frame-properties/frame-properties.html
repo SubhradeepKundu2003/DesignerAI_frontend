@@ -1,0 +1,55 @@
+<app-panel-section title="Layout">
+  <app-select-input
+    label="Direction"
+    [value]="element().layout"
+    [options]="layoutOptions"
+    [disabled]="disabled()"
+    (valueChange)="setLayout($event)"
+  />
+
+  <div class="frame-properties__row">
+    <app-number-input
+      label="Gap"
+      suffix="px"
+      [min]="0"
+      [value]="element().gap"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setGap($event)"
+    />
+    <app-number-input
+      label="Padding"
+      suffix="px"
+      [min]="0"
+      [value]="element().padding"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setPadding($event)"
+    />
+  </div>
+</app-panel-section>
+
+<app-panel-section title="Background">
+  <label class="frame-properties__toggle">
+    <input
+      type="checkbox"
+      [checked]="element().background !== undefined"
+      [disabled]="disabled()"
+      (change)="toggleBackground($any($event.target).checked)"
+    />
+    Fill background
+  </label>
+
+  @if (element().background !== undefined) {
+    <app-color-input
+      label="Colour"
+      [value]="element().background!"
+      [disabled]="disabled()"
+      (focusin)="beginGesture()"
+      (focusout)="endGesture()"
+      (valueChange)="setBackground($event)"
+    />
+  }
+</app-panel-section>

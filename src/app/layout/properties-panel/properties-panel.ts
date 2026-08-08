@@ -2,7 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 
 import { CommonProperties } from '../../canvas/components/properties/common-properties/common-properties';
 import { DividerProperties } from '../../canvas/components/properties/divider-properties/divider-properties';
+import { FrameProperties } from '../../canvas/components/properties/frame-properties/frame-properties';
 import { GroupProperties } from '../../canvas/components/properties/group-properties/group-properties';
+import { IconProperties } from '../../canvas/components/properties/icon-properties/icon-properties';
 import { ImageProperties } from '../../canvas/components/properties/image-properties/image-properties';
 import { ShapeProperties } from '../../canvas/components/properties/shape-properties/shape-properties';
 import { TextProperties } from '../../canvas/components/properties/text-properties/text-properties';
@@ -28,6 +30,8 @@ import { AppIcon } from '../../shared/components/app-icon/app-icon';
     DividerProperties,
     ImageProperties,
     GroupProperties,
+    IconProperties,
+    FrameProperties,
   ],
   templateUrl: './properties-panel.html',
   styleUrl: './properties-panel.scss',
@@ -58,5 +62,15 @@ export class PropertiesPanel {
   protected readonly imageElement = computed(() => {
     const element = this.element();
     return element?.type === 'image' ? element : null;
+  });
+
+  protected readonly iconElement = computed(() => {
+    const element = this.element();
+    return element?.type === 'icon' ? element : null;
+  });
+
+  protected readonly frameElement = computed(() => {
+    const element = this.element();
+    return element?.type === 'frame' ? element : null;
   });
 }

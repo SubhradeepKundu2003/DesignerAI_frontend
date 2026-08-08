@@ -1,4 +1,5 @@
 import { CanvasElement, GroupElement } from './canvas-element.model';
+import { DesignTheme } from './design-theme.model';
 
 /**
  * The Canvas JSON document — the single source of truth for the editor.
@@ -10,6 +11,12 @@ import { CanvasElement, GroupElement } from './canvas-element.model';
 export interface CanvasDocument {
   readonly version: 1;
   pages: Page[];
+  /**
+   * The project's active theme. Optional so a document saved before theming
+   * existed still loads — read as `document.theme ?? DEFAULT_THEME`, the same
+   * `?? []` pattern `Page.groups` already uses.
+   */
+  theme?: DesignTheme;
 }
 
 export interface Page {

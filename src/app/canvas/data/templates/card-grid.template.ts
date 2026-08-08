@@ -1,8 +1,8 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName } from './icon-svg';
-import { ACCENT_CYCLE, BORDER, INK, MUTED } from './palette';
-import { circle, icon, rect, text, translate } from './template-kit';
+import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
+import { frame, icon, text, translate } from './template-kit';
 
 const COLS = 3;
 const ROWS = 2;
@@ -10,6 +10,11 @@ const CARD = { width: 216, height: 150 };
 const GAP = 25;
 const WIDTH = COLS * CARD.width + (COLS - 1) * GAP;
 const HEIGHT = ROWS * CARD.height + (ROWS - 1) * GAP;
+
+const CONTENT_WIDTH = 184;
+const CARD_PADDING = 16;
+const CARD_GAP = 10;
+const ICON_SIZE = 28;
 
 const CARDS: { title: string; body: string; iconName: IconName }[] = [
   { title: 'Point one', body: 'A short line backing up this highlight.', iconName: 'star' },
@@ -20,61 +25,101 @@ const CARDS: { title: string; body: string; iconName: IconName }[] = [
   { title: 'Point six', body: 'A short line backing up this highlight.', iconName: 'calendar' },
 ];
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
-  const elements: CanvasElement[] = [];
-
-  CARDS.forEach((card, i) => {
-    const col = i % COLS;
-    const row = Math.floor(i / COLS);
-    const x = col * (CARD.width + GAP);
-    const y = row * (CARD.height + GAP);
-    const accent = ACCENT_CYCLE[i % ACCENT_CYCLE.length];
-    const badge = { x: x + 16, y: y + 16, diameter: 40 };
-
-    elements.push(
-      rect({ x, y, width: CARD.width, height: CARD.height, fill: '#ffffff', stroke: BORDER, strokeWidth: 1, cornerRadius: 16, name: `Card ${i + 1}` }),
-      rect({ x: x + (CARD.width - 48) / 2, y: y - 3, width: 48, height: 6, fill: accent.solid, cornerRadius: 3, name: `Card ${i + 1} accent` }),
-      circle({ x: badge.x, y: badge.y, diameter: badge.diameter, fill: accent.solid, name: `Card ${i + 1} badge` }),
-      icon({ x: badge.x + 10, y: badge.y + 10, size: 20, name: card.iconName, color: '#ffffff', label: `Card ${i + 1} icon` }),
-      text({
-        x: x + CARD.width - 40,
-        y: y + 16,
-        width: 24,
-        height: 18,
-        text: String(i + 1).padStart(2, '0'),
-        name: `Card ${i + 1} number`,
-        fontSize: 13,
-        fontStyle: 'bold',
-        align: 'right',
-        fill: accent.solid,
-      }),
-      text({
-        x: x + 16,
-        y: y + 66,
-        width: CARD.width - 32,
-        height: 20,
-        text: card.title,
-        name: `Card ${i + 1} title`,
-        fontSize: 15,
-        fontStyle: 'bold',
-        fill: INK,
-        lineHeight: 1.2,
-      }),
-      text({
-        x: x + 16,
-        y: y + 88,
-        width: CARD.width - 32,
-        height: 50,
-        text: card.body,
-        name: `Card ${i + 1} body`,
-        fontSize: 12.5,
-        fill: MUTED,
-        lineHeight: 1.3,
-      }),
-    );
+/**
+ * Rebuilt on Frames (Track D3), a grid two levels deep: an outer `column`
+ * frame of `row` frames, each holding three `column` "card" frames (icon,
+ * title, body). `CARD_PADDING`/`CARD_GAP`/`CONTENT_WIDTH` are chosen so each
+ * card frame hugs its content to exactly `CARD.width`x`CARD.height` — no
+ * pixel-position bookkeeping left in this file at all, unlike the old version.
+ * Known v1 trade-off: `FrameElement` has no stroke/corner-radius, so the card
+ * panel is a flat `surface`-tinted rectangle rather than the old bordered,
+ * rounded one — a fair swap for panels that now recolour with the theme.
+ */
+function buildCard(card: (typeof CARDS)[number], index: number): CanvasElement[] {
+  const accent = ACCENT_CYCLE[index % ACCENT_CYCLE.length];
+  const cardIcon = icon({
+    x: 0,
+    y: 0,
+    size: ICON_SIZE,
+    name: card.iconName,
+    color: accent.solid,
+    fillRef: accentRef(index % ACCENT_CYCLE.length, 'solid'),
+    label: `Card ${index + 1} icon`,
+  });
+  const title = text({
+    x: 0,
+    y: 0,
+    width: CONTENT_WIDTH,
+    height: 20,
+    text: card.title,
+    name: `Card ${index + 1} title`,
+    fontSize: 15,
+    fontStyle: 'bold',
+    fill: INK,
+    fillRef: 'ink',
+    lineHeight: 1.2,
+  });
+  const body = text({
+    x: 0,
+    y: 0,
+    width: CONTENT_WIDTH,
+    height: 50,
+    text: card.body,
+    name: `Card ${index + 1} body`,
+    fontSize: 12.5,
+    fill: MUTED,
+    fillRef: 'muted',
+    lineHeight: 1.3,
   });
 
-  return translate(elements, origin);
+  return frame({
+    x: 0,
+    y: 0,
+    name: `Card ${index + 1}`,
+    layout: 'column',
+    gap: CARD_GAP,
+    padding: CARD_PADDING,
+    background: '#ffffff',
+    fillRef: 'surface',
+    children: [cardIcon, title, body],
+  });
+}
+
+function buildRow(cards: readonly (typeof CARDS)[number][], rowIndex: number): CanvasElement[] {
+  const cardBundles = cards.map((card, i) => buildCard(card, rowIndex * COLS + i));
+  const row = frame({
+    x: 0,
+    y: 0,
+    name: `Card row ${rowIndex + 1}`,
+    layout: 'row',
+    gap: GAP,
+    padding: 0,
+    children: cardBundles.map((bundle) => bundle[0]),
+  });
+  const [rowFrame, ...positionedCards] = row;
+
+  // Each card was built at its own local origin; shift the whole bundle to
+  // where the row frame placed it, moving the card's icon/title/body with it.
+  const cardElements = cardBundles.flatMap((bundle, i) => translate(bundle, positionedCards[i]));
+
+  return [rowFrame, ...cardElements];
+}
+
+function build(origin: { x: number; y: number }): CanvasElement[] {
+  const rows = [buildRow(CARDS.slice(0, COLS), 0), buildRow(CARDS.slice(COLS), 1)];
+  const outer = frame({
+    x: 0,
+    y: 0,
+    name: 'Card grid',
+    layout: 'column',
+    gap: GAP,
+    padding: 0,
+    children: rows.map((row) => row[0]),
+  });
+  const [outerFrame, ...positionedRows] = outer;
+  const rowElements = rows.flatMap((row, i) => translate(row, positionedRows[i]));
+
+  return translate([outerFrame, ...rowElements], origin);
 }
 
 const THUMBNAIL =

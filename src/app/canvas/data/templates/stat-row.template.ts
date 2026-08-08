@@ -1,8 +1,8 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName } from './icon-svg';
-import { ACCENT_CYCLE, BORDER, MUTED } from './palette';
-import { circle, connector, icon, text, translate } from './template-kit';
+import { ACCENT_CYCLE, BORDER, MUTED, accentRef } from './palette';
+import { circle, connector, frame, icon, text, translate } from './template-kit';
 
 const COLS = 3;
 const COL_WIDTH = 216;
@@ -10,54 +10,128 @@ const GAP = 25;
 const WIDTH = COLS * COL_WIDTH + (COLS - 1) * GAP;
 const HEIGHT = 180;
 
+const BADGE_DIAMETER = 56;
+// Badges are narrower than a column, so their row needs a wider gap than the
+// value/label rows to land on the same column centres — see the worked
+// example in this template's build() below.
+const BADGE_ROW_X = (COL_WIDTH - BADGE_DIAMETER) / 2;
+const BADGE_GAP = COL_WIDTH + GAP - BADGE_DIAMETER;
+
 const STATS: { value: string; label: string; iconName: IconName }[] = [
   { value: '150+', label: 'New clients', iconName: 'users' },
   { value: '24/7', label: 'Support coverage', iconName: 'trendUp' },
   { value: '99%', label: 'Satisfaction', iconName: 'check' },
 ];
 
+/**
+ * Rebuilt on Frames (Track D3): three flat, single-axis row-frames — badges,
+ * values, labels — rather than one frame per column, because a badge's icon
+ * *overlaps* its circle rather than stacking after it, and `FrameElement`
+ * (v1) only ever stacks children sequentially along one axis, never overlaid.
+ * Icons ride along as siblings positioned from the badges row's own resolved
+ * output, not frame children themselves — this is the same "auto-layout row
+ * plus a pinned overlay" split real design tools use for a badge-in-circle.
+ */
 function build(origin: { x: number; y: number }): CanvasElement[] {
   const elements: CanvasElement[] = [];
 
+  const badges = STATS.map((_, i) =>
+    circle({
+      x: 0,
+      y: 0,
+      diameter: BADGE_DIAMETER,
+      fill: ACCENT_CYCLE[i].tint,
+      fillRef: accentRef(i, 'tint'),
+      name: `Stat ${i + 1} badge`,
+    }),
+  );
+  const badgeRow = frame({
+    x: BADGE_ROW_X,
+    y: 20,
+    name: 'Stat badges',
+    layout: 'row',
+    gap: BADGE_GAP,
+    padding: 0,
+    children: badges,
+  });
+  const positionedBadges = badgeRow.slice(1);
+
+  const values = STATS.map((stat, i) =>
+    text({
+      x: 0,
+      y: 0,
+      width: COL_WIDTH,
+      height: 42,
+      text: stat.value,
+      name: `Stat ${i + 1} value`,
+      fontSize: 32,
+      fontStyle: 'bold',
+      align: 'center',
+      fill: ACCENT_CYCLE[i].solid,
+      fillRef: accentRef(i, 'solid'),
+      lineHeight: 1.1,
+    }),
+  );
+  const valueRow = frame({
+    x: 0,
+    y: 20 + BADGE_DIAMETER + 12,
+    name: 'Stat values',
+    layout: 'row',
+    gap: GAP,
+    padding: 0,
+    children: values,
+  });
+
+  const labels = STATS.map((stat, i) =>
+    text({
+      x: 0,
+      y: 0,
+      width: COL_WIDTH,
+      height: 20,
+      text: stat.label,
+      name: `Stat ${i + 1} label`,
+      fontSize: 13,
+      align: 'center',
+      fill: MUTED,
+      fillRef: 'muted',
+    }),
+  );
+  const labelRow = frame({
+    x: 0,
+    y: 20 + BADGE_DIAMETER + 12 + 42,
+    name: 'Stat labels',
+    layout: 'row',
+    gap: GAP,
+    padding: 0,
+    children: labels,
+  });
+
+  elements.push(...badgeRow, ...valueRow, ...labelRow);
+
   STATS.forEach((stat, i) => {
-    const colX = i * (COL_WIDTH + GAP);
-    const accent = ACCENT_CYCLE[i];
-    const badgeDiameter = 56;
-    const badgeCenter = { x: colX + COL_WIDTH / 2, y: 20 + badgeDiameter / 2 };
-
-    if (i > 0) {
-      const gapX = colX - GAP / 2;
-      elements.push(connector({ x: gapX, y: 12 }, { x: gapX, y: HEIGHT - 12 }, { name: `Divider ${i}`, stroke: BORDER, strokeWidth: 1 }));
-    }
-
+    const badge = positionedBadges[i];
     elements.push(
-      circle({ x: badgeCenter.x - badgeDiameter / 2, y: badgeCenter.y - badgeDiameter / 2, diameter: badgeDiameter, fill: accent.tint, name: `Stat ${i + 1} badge` }),
-      icon({ x: badgeCenter.x - 14, y: badgeCenter.y - 14, size: 28, name: stat.iconName, color: accent.solid, label: `Stat ${i + 1} icon` }),
-      text({
-        x: colX,
-        y: 20 + badgeDiameter + 12,
-        width: COL_WIDTH,
-        height: 42,
-        text: stat.value,
-        name: `Stat ${i + 1} value`,
-        fontSize: 32,
-        fontStyle: 'bold',
-        align: 'center',
-        fill: accent.solid,
-        lineHeight: 1.1,
-      }),
-      text({
-        x: colX,
-        y: 20 + badgeDiameter + 12 + 42,
-        width: COL_WIDTH,
-        height: 20,
-        text: stat.label,
-        name: `Stat ${i + 1} label`,
-        fontSize: 13,
-        align: 'center',
-        fill: MUTED,
+      icon({
+        x: badge.x + (BADGE_DIAMETER - 28) / 2,
+        y: badge.y + (BADGE_DIAMETER - 28) / 2,
+        size: 28,
+        name: stat.iconName,
+        color: ACCENT_CYCLE[i].solid,
+        fillRef: accentRef(i, 'solid'),
+        label: `Stat ${i + 1} icon`,
       }),
     );
+
+    if (i > 0) {
+      const gapX = i * (COL_WIDTH + GAP) - GAP / 2;
+      elements.push(
+        connector(
+          { x: gapX, y: 12 },
+          { x: gapX, y: HEIGHT - 12 },
+          { name: `Divider ${i}`, stroke: BORDER, strokeRef: 'border', strokeWidth: 1 },
+        ),
+      );
+    }
   });
 
   return translate(elements, origin);

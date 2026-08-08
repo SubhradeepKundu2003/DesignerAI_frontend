@@ -49,7 +49,9 @@ export class DividerProperties {
   }
 
   protected setStroke(stroke: string): void {
-    this.patch({ stroke }, 'Change stroke colour');
+    // A hand-picked colour detaches the element from the theme — otherwise the
+    // next `ApplyThemeCommand` would silently overwrite what the user just set.
+    this.patch({ stroke, strokeRef: undefined }, 'Change stroke colour');
   }
 
   protected setStrokeWidth(strokeWidth: number): void {
