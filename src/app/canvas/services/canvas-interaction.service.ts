@@ -34,6 +34,14 @@ const NS = '.canvas-interaction';
  * and a command writes it into the document. The reconciler then redraws from
  * the document, which is what re-establishes the one-way flow.
  *
+ * The transformer already keeps every node it holds moving together during a
+ * drag: once more than one node is attached, Konva wires each of them to
+ * mirror whichever one the pointer is actually driving (`Transformer`'s
+ * `_proxyDrag`). This service must not reproduce that — only the node under
+ * the pointer gets snapped here; the rest are left entirely to Konva.
+ * Applying the same delta a second time is what used to send a multi-element
+ * drag (any group, or a shift-click multi-select) flying apart.
+ *
  * Listeners are delegated to the content layer rather than bound per node:
  * nodes come and go with the reconciler, and delegated handlers do not have to
  * be rebound when they do.
@@ -57,10 +65,9 @@ export class CanvasInteractions implements OnDestroy {
 
   /**
    * Every node moving as part of the drag gesture in progress, with the
-   * position each held when the gesture started. Konva only natively drags
-   * the node under the pointer — this is what makes the rest of a
-   * multi-selection (or a group's members) follow along and land in one
-   * `commitDrag`, instead of only the grabbed node actually moving.
+   * position each held when the gesture started. Konva's transformer moves
+   * all of them; this is only kept around so `commitDrag` can read back
+   * where each one landed and write one command per node that actually moved.
    */
   private readonly dragOrigin = new Map<ElementNode, { x: number; y: number }>();
 
@@ -70,6 +77,8 @@ export class CanvasInteractions implements OnDestroy {
   private marqueeBase: readonly string[] = [];
   private readonly onMarqueeMove = (event: PointerEvent) => this.updateMarquee(event);
   private readonly onMarqueeUp = () => this.endMarquee();
+  /** The node the pointer actually grabbed — the only one snapping applies to. */
+  private primaryDragNode: ElementNode | null = null;
 
   attach(stage: Konva.Stage, content: Konva.Layer, transformer: Transformer): void {
     this.detach();
@@ -179,19 +188,29 @@ export class CanvasInteractions implements OnDestroy {
     }
 
     this.dragOrigin.clear();
+    this.primaryDragNode = event.target as ElementNode;
     for (const node of (this.transformer?.nodes() ?? []) as ElementNode[]) {
       this.dragOrigin.set(node, { x: node.x(), y: node.y() });
     }
   }
 
   /**
-   * Nudges a node still being dragged onto whatever the grid or an alignment
-   * guide offers, and shows the guides that matched. Konva has already moved
-   * the node to the raw pointer position by the time this fires; overriding
-   * it here is the sanctioned way to snap a native drag without fighting it.
-   * Every other node captured at drag-start then follows by the same delta.
+   * Nudges the node the pointer is actually driving onto whatever the grid or
+   * an alignment guide offers, and shows the guides that matched. Konva has
+   * already moved it to the raw pointer position by the time this fires;
+   * overriding it here is the sanctioned way to snap a native drag without
+   * fighting it.
+   *
+   * Every other selected node is left alone: Konva's transformer already
+   * mirrors this same node's movement onto them (see the class doc), so
+   * snapping — or otherwise repositioning — one of them here would apply that
+   * movement twice and pull the group apart instead of moving it as one.
    */
   private onDragMove(node: ElementNode): void {
+    if (node !== this.primaryDragNode) {
+      return;
+    }
+
     const element = this.canvas.elementById(node.id());
     if (!element) {
       return;
@@ -221,27 +240,6 @@ export class CanvasInteractions implements OnDestroy {
       node.position({ x: result.x, y: result.y });
       this.guides.render(result.guides, { width: page.width, height: page.height });
     }
-
-    this.followDrag(node);
-  }
-
-  /** Moves every other captured node by the delta `node` has moved since drag-start. */
-  private followDrag(node: ElementNode): void {
-    const origin = this.dragOrigin.get(node);
-    if (!origin) {
-      return;
-    }
-    const dx = node.x() - origin.x;
-    const dy = node.y() - origin.y;
-    if (dx === 0 && dy === 0) {
-      return;
-    }
-
-    for (const [other, start] of this.dragOrigin) {
-      if (other !== node) {
-        other.position({ x: start.x + dx, y: start.y + dy });
-      }
-    }
   }
 
   /**
@@ -268,6 +266,7 @@ export class CanvasInteractions implements OnDestroy {
       }
     }
     this.dragOrigin.clear();
+    this.primaryDragNode = null;
 
     if (updates.length === 0) {
       return;
