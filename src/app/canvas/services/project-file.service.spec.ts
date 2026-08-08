@@ -1,12 +1,17 @@
 import { TestBed } from '@angular/core/testing';
 import JSZip from 'jszip';
 
-import { shapeElement } from '../../../testing/canvas-fixtures';
+import { imageElement, shapeElement } from '../../../testing/canvas-fixtures';
 import { CanvasDocument } from '../models/canvas-document.model';
+import { ImageElement } from '../models/canvas-element.model';
 import { PROJECT_FILE_FORMAT_VERSION, ProjectManifest } from '../models/project-file.model';
 import { CanvasStore } from '../state/canvas.store';
 import { HistoryStore } from '../state/history.store';
 import { ProjectFileService } from './project-file.service';
+
+// Decodes to well over the 50 KB externalization threshold; all-'A' is valid
+// (padding-free) base64, so JSZip can round-trip it without a real image.
+const LARGE_IMAGE_SRC = `data:image/png;base64,${'A'.repeat(70000)}`;
 
 async function zipFile(entries: Record<string, string>): Promise<File> {
   const zip = new JSZip();
@@ -79,6 +84,67 @@ describe('ProjectFileService', () => {
     expect(document).toEqual(canvas.document());
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
+    expect(zip.file('thumbnail.png')).not.toBeNull();
+  });
+
+  it('should leave a small image inline rather than externalizing it', async () => {
+    canvas.insertElement(imageElement());
+
+    await service.exportProject();
+
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    const zip = await JSZip.loadAsync(blob);
+    const document = JSON.parse(await zip.file('document.json')!.async('string')) as CanvasDocument;
+
+    expect((document.pages[0].elements[0] as ImageElement).src).toBe(imageElement().src);
+    expect(Object.keys(zip.files).some((name) => name.startsWith('assets/'))).toBe(false);
+  });
+
+  it('should externalize a large image to assets/ and reference it by an asset: ref', async () => {
+    canvas.insertElement(imageElement({ src: LARGE_IMAGE_SRC }));
+
+    await service.exportProject();
+
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    const zip = await JSZip.loadAsync(blob);
+    const document = JSON.parse(await zip.file('document.json')!.async('string')) as CanvasDocument;
+
+    const src = (document.pages[0].elements[0] as ImageElement).src;
+    expect(src).toMatch(/^asset:img-[0-9a-f]{8}\.png$/);
+    const assetEntry = zip.file(`assets/${src.slice('asset:'.length)}`);
+    expect(assetEntry).not.toBeNull();
+    expect(await assetEntry!.async('base64')).toBe('A'.repeat(70000));
+  });
+
+  it('should dedupe identical large images to a single asset file', async () => {
+    canvas.insertElement(imageElement({ src: LARGE_IMAGE_SRC }));
+    canvas.insertElement(imageElement({ src: LARGE_IMAGE_SRC }));
+
+    await service.exportProject();
+
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    const zip = await JSZip.loadAsync(blob);
+    const document = JSON.parse(await zip.file('document.json')!.async('string')) as CanvasDocument;
+
+    const [first, second] = document.pages[0].elements as ImageElement[];
+    expect(first.src).toBe(second.src);
+    expect(Object.values(zip.files).filter((entry) => !entry.dir && entry.name.startsWith('assets/'))).toHaveLength(1);
+  });
+
+  it('should rehydrate an asset: ref back to a blob URL on import', async () => {
+    canvas.insertElement(imageElement({ src: LARGE_IMAGE_SRC }));
+    await service.exportProject();
+    const exportedBlob = createObjectURL.mock.calls[0][0] as Blob;
+    const dznFile = new File([exportedBlob], 'design.dzn');
+    createObjectURL.mockClear();
+
+    await service.importProject(dznFile);
+
+    expect(service.importError()).toBeNull();
+    const imported = canvas.elements()[0] as ImageElement;
+    expect(imported.src).toBe('blob:mock');
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(createObjectURL.mock.calls[0][0]).toBeInstanceOf(Blob);
   });
 
   it('should import a valid .dzn file as one undoable step', async () => {

@@ -1,3 +1,7 @@
+/** A 1x1 transparent PNG — enough for `toDataURL()` to return something real specs can parse as a data URL. */
+const STUB_PNG_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
 /**
  * Gives jsdom a 2D canvas context so Konva can be exercised in unit tests.
  *
@@ -6,9 +10,16 @@
  * The stub rasterises nothing — it exists so the renderers' *logic* (node
  * lifecycle, attributes, the stage transform) can be asserted without a real
  * rasteriser. Pixel output is verified in the browser, not here.
+ *
+ * `toDataURL()` is stubbed alongside it for the same reason: jsdom's is also
+ * a no-op without the native `canvas` package, but code exporting a
+ * snapshot (e.g. `ThumbnailSnapshotService`) needs *some* well-formed data
+ * URL back to prove the export path itself works.
  */
 export function stubCanvas2dContext(): () => void {
   const original = HTMLCanvasElement.prototype.getContext;
+  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  HTMLCanvasElement.prototype.toDataURL = () => STUB_PNG_DATA_URL;
 
   // Konva reads back from a few of these, so they return plausible shapes
   // rather than `undefined`; everything else is a no-op, and assigned
@@ -35,5 +46,6 @@ export function stubCanvas2dContext(): () => void {
 
   return () => {
     HTMLCanvasElement.prototype.getContext = original;
+    HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
   };
 }

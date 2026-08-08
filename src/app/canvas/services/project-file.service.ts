@@ -3,14 +3,22 @@ import JSZip from 'jszip';
 
 import { CommandBus } from '../commands/command-bus.service';
 import { LoadCanvasCommand } from '../commands/load-canvas.command';
-import { CanvasDocument, isCanvasDocument } from '../models/canvas-document.model';
+import { CanvasElement, isImageElement } from '../models/canvas-element.model';
+import { CanvasDocument, Page, isCanvasDocument } from '../models/canvas-document.model';
 import {
+  PROJECT_ASSETS_DIR,
+  PROJECT_ASSET_SIZE_THRESHOLD_BYTES,
+  PROJECT_ASSET_URI_PREFIX,
   PROJECT_FILE_EXTENSION,
   PROJECT_FILE_FORMAT_VERSION,
+  PROJECT_THUMBNAIL_ENTRY,
   ProjectManifest,
+  assetRefFilename,
   isProjectManifest,
 } from '../models/project-file.model';
+import { ThumbnailSnapshotService } from '../renderers/thumbnail-snapshot.service';
 import { CanvasStore } from '../state/canvas.store';
+import { extensionForMimeType, hashBase64, parseDataUrl } from '../utils/data-url.util';
 
 const DEFAULT_TITLE = 'Untitled design';
 const APP_VERSION = '0.1.0';
@@ -26,6 +34,7 @@ const ERROR_FLASH_MS = 4000;
 export class ProjectFileService {
   private readonly canvas = inject(CanvasStore);
   private readonly commands = inject(CommandBus);
+  private readonly thumbnails = inject(ThumbnailSnapshotService);
 
   /** A brief, human-readable message after a failed import — same transient-cue pattern as `PersistenceService.justSaved`. */
   readonly importError = signal<string | null>(null);
@@ -47,12 +56,34 @@ export class ProjectFileService {
       title: DEFAULT_TITLE,
     };
 
+    const document = this.canvas.document();
     const zip = new JSZip();
     zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-    zip.file('document.json', JSON.stringify(this.canvas.document(), null, 2));
+    zip.file('document.json', JSON.stringify(externalizeAssets(document, zip), null, 2));
+    await this.addThumbnail(zip, document.pages[0]);
 
     const blob = await zip.generateAsync({ type: 'blob' });
     downloadBlob(blob, `design.${PROJECT_FILE_EXTENSION}`);
+  }
+
+  /**
+   * Best-effort: rendered from the original (pre-externalization) page, since
+   * `ThumbnailSnapshotService` needs a real loadable `src`, not an `asset:`
+   * ref. A render failure never blocks the export — the zip just ships
+   * without a thumbnail.
+   */
+  private async addThumbnail(zip: JSZip, page: Page | undefined): Promise<void> {
+    if (!page) {
+      return;
+    }
+    try {
+      const parsed = parseDataUrl(await this.thumbnails.snapshot(page));
+      if (parsed) {
+        zip.file(PROJECT_THUMBNAIL_ENTRY, parsed.base64, { base64: true });
+      }
+    } catch {
+      // Rendering the thumbnail is a nice-to-have, not part of the file's integrity.
+    }
   }
 
   /** Unzips, validates, and loads a `.dzn` file as one undoable step; reports a message via {@link importError} on failure. */
@@ -88,7 +119,7 @@ async function readProjectFile(file: File): Promise<CanvasDocument> {
     throw new Error('This project file does not contain a valid design.');
   }
 
-  return document;
+  return rehydrateAssets(document, zip);
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -98,4 +129,83 @@ function downloadBlob(blob: Blob, filename: string): void {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Replaces any `ImageElement.src` over {@link PROJECT_ASSET_SIZE_THRESHOLD_BYTES}
+ * with an `asset:` ref and writes its bytes to `assets/` once per distinct
+ * image (by content hash) — a picture used on three pages is stored once.
+ * Returns a new document; `document` itself is never mutated.
+ */
+function externalizeAssets(document: CanvasDocument, zip: JSZip): CanvasDocument {
+  const written = new Map<string, string>();
+  return {
+    ...document,
+    pages: document.pages.map((page) => ({
+      ...page,
+      elements: page.elements.map((element) => externalizeElement(element, zip, written)),
+    })),
+  };
+}
+
+function externalizeElement(element: CanvasElement, zip: JSZip, written: Map<string, string>): CanvasElement {
+  if (!isImageElement(element)) {
+    return element;
+  }
+
+  const parsed = parseDataUrl(element.src);
+  if (!parsed || parsed.byteLength <= PROJECT_ASSET_SIZE_THRESHOLD_BYTES) {
+    return element;
+  }
+
+  const hash = hashBase64(parsed.base64);
+  let filename = written.get(hash);
+  if (!filename) {
+    filename = `img-${hash}.${extensionForMimeType(parsed.mimeType)}`;
+    zip.file(`${PROJECT_ASSETS_DIR}/${filename}`, parsed.base64, { base64: true });
+    written.set(hash, filename);
+  }
+
+  return { ...element, src: `${PROJECT_ASSET_URI_PREFIX}${filename}` };
+}
+
+/** Rehydrates every `asset:` ref back to a blob URL for the editing session; a document with none is returned as-is. */
+async function rehydrateAssets(document: CanvasDocument, zip: JSZip): Promise<CanvasDocument> {
+  const urls = new Map<string, string>();
+  const pages = await Promise.all(document.pages.map((page) => rehydratePage(page, zip, urls)));
+  return { ...document, pages };
+}
+
+async function rehydratePage(page: Page, zip: JSZip, urls: Map<string, string>): Promise<Page> {
+  const elements = await Promise.all(page.elements.map((element) => rehydrateElement(element, zip, urls)));
+  return { ...page, elements };
+}
+
+async function rehydrateElement(
+  element: CanvasElement,
+  zip: JSZip,
+  urls: Map<string, string>,
+): Promise<CanvasElement> {
+  if (!isImageElement(element)) {
+    return element;
+  }
+
+  const filename = assetRefFilename(element.src);
+  if (!filename) {
+    return element;
+  }
+
+  let url = urls.get(filename);
+  if (!url) {
+    const entry = zip.file(`${PROJECT_ASSETS_DIR}/${filename}`);
+    // A missing asset leaves the element pointing at its unresolved `asset:` ref
+    // rather than failing the whole import over one picture.
+    if (!entry) {
+      return element;
+    }
+    url = URL.createObjectURL(await entry.async('blob'));
+    urls.set(filename, url);
+  }
+
+  return { ...element, src: url };
 }
