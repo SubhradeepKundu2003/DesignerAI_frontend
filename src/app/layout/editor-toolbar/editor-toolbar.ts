@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, viewChild } from '@angular/core';
 
 import { ApplyThemeCommand } from '../../canvas/commands/apply-theme.command';
 import { CommandBus } from '../../canvas/commands/command-bus.service';
 import { ElementActions } from '../../canvas/services/element-actions.service';
 import { PersistenceService } from '../../canvas/services/persistence.service';
+import { ProjectFileService } from '../../canvas/services/project-file.service';
 import { CanvasStore } from '../../canvas/state/canvas.store';
 import { EditorSettingsStore } from '../../canvas/state/editor-settings.store';
 import { ThemeStore } from '../../canvas/state/theme.store';
@@ -24,8 +25,11 @@ export class EditorToolbar {
   private readonly commands = inject(CommandBus);
   private readonly actions = inject(ElementActions);
   private readonly persistence = inject(PersistenceService);
+  private readonly projectFile = inject(ProjectFileService);
   private readonly canvas = inject(CanvasStore);
   private readonly theme = inject(ThemeStore);
+
+  private readonly importInput = viewChild.required<ElementRef<HTMLInputElement>>('importInput');
 
   protected readonly themePresets = this.theme.presets;
   protected readonly activeThemeId = computed(() => this.theme.activeTheme().id);
@@ -48,6 +52,7 @@ export class EditorToolbar {
 
   protected readonly canLoad = this.persistence.hasSave;
   protected readonly justSaved = this.persistence.justSaved;
+  protected readonly importError = this.projectFile.importError;
 
   /** Names the change on the button, so undo says what it will reverse. */
   protected readonly undoLabel = computed(() => labelFor('Undo', this.commands.undoLabel()));
@@ -108,6 +113,24 @@ export class EditorToolbar {
 
   protected load(): void {
     this.persistence.load();
+  }
+
+  protected exportProject(): void {
+    void this.projectFile.exportProject();
+  }
+
+  protected pickProjectFile(): void {
+    this.importInput().nativeElement.click();
+  }
+
+  protected onProjectFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    // Cleared so choosing the same file again still fires a change event.
+    input.value = '';
+    if (file) {
+      void this.projectFile.importProject(file);
+    }
   }
 
   protected setTheme(id: string): void {

@@ -3,7 +3,7 @@ import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 import { LocalStorageService } from '../../core/services/local-storage.service';
 import { CommandBus } from '../commands/command-bus.service';
 import { LoadCanvasCommand } from '../commands/load-canvas.command';
-import { CanvasDocument, CANVAS_DOCUMENT_VERSION } from '../models/canvas-document.model';
+import { CanvasDocument, isCanvasDocument } from '../models/canvas-document.model';
 import { CanvasStore } from '../state/canvas.store';
 
 const STORAGE_KEY = 'designerai:canvas:v1';
@@ -85,13 +85,4 @@ export class PersistenceService {
     const value = this.storage.get<CanvasDocument>(STORAGE_KEY);
     return isCanvasDocument(value) ? value : null;
   }
-}
-
-function isCanvasDocument(value: unknown): value is CanvasDocument {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    (value as CanvasDocument).version === CANVAS_DOCUMENT_VERSION &&
-    Array.isArray((value as CanvasDocument).pages)
-  );
 }

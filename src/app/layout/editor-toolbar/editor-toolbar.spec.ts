@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { shapeElement } from '../../../testing/canvas-fixtures';
 import { AddElementCommand } from '../../canvas/commands/add-element.command';
 import { CommandBus } from '../../canvas/commands/command-bus.service';
+import { ProjectFileService } from '../../canvas/services/project-file.service';
 import { CanvasStore } from '../../canvas/state/canvas.store';
 import { SelectionStore } from '../../canvas/state/selection.store';
 import { EditorToolbar } from './editor-toolbar';
@@ -13,6 +14,7 @@ describe('EditorToolbar', () => {
   let canvas: CanvasStore;
   let selection: SelectionStore;
   let bus: CommandBus;
+  let projectFile: ProjectFileService;
 
   /** Finds a toolbar button by the start of its accessible name. */
   const button = (name: string): HTMLButtonElement =>
@@ -30,6 +32,7 @@ describe('EditorToolbar', () => {
     canvas = TestBed.inject(CanvasStore);
     selection = TestBed.inject(SelectionStore);
     bus = TestBed.inject(CommandBus);
+    projectFile = TestBed.inject(ProjectFileService);
     await fixture.whenStable();
   });
 
@@ -114,5 +117,44 @@ describe('EditorToolbar', () => {
     await fixture.whenStable();
 
     expect(canvas.elements().map((element) => element.id)).toEqual([top.id, bottom.id]);
+  });
+
+  it('should export the project through the project-file service on click', () => {
+    const exportSpy = vi.spyOn(projectFile, 'exportProject').mockResolvedValue();
+
+    button('Export project').click();
+
+    expect(exportSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should open the file picker when Import project is clicked', () => {
+    const input = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;
+    const clickSpy = vi.spyOn(input, 'click');
+
+    button('Import project').click();
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should import the picked file through the project-file service', async () => {
+    const importSpy = vi.spyOn(projectFile, 'importProject').mockResolvedValue();
+    const input = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['contents'], 'design.dzn');
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+
+    input.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(importSpy).toHaveBeenCalledWith(file);
+  });
+
+  it('should show a transient import error from the project-file service', async () => {
+    projectFile.importError.set('Not a valid .dzn project file.');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('.toolbar__error')?.textContent).toBe(
+      'Not a valid .dzn project file.',
+    );
   });
 });

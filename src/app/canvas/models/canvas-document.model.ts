@@ -43,3 +43,13 @@ export interface Page {
 }
 
 export const CANVAS_DOCUMENT_VERSION = 1 as const;
+
+/** Shared shape guard for anything read back from an untrusted source — localStorage or an imported file. */
+export function isCanvasDocument(value: unknown): value is CanvasDocument {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    (value as CanvasDocument).version === CANVAS_DOCUMENT_VERSION &&
+    Array.isArray((value as CanvasDocument).pages)
+  );
+}

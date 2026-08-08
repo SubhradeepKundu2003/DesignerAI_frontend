@@ -49,6 +49,17 @@
     animation: toolbar-saved-fade 1.6s ease-out;
   }
 
+  &__error {
+    max-width: 240px;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-danger);
+    color: var(--color-text-inverse);
+    font-size: var(--text-sm);
+
+    @include mx.truncate;
+  }
+
   &__group {
     display: flex;
     align-items: center;

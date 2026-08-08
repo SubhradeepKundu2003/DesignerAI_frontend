@@ -14,6 +14,23 @@
 
   <span class="toolbar__divider" role="separator"></span>
 
+  <div class="toolbar__group" role="group" aria-label="Project file">
+    <app-icon-button icon="download" label="Export project (.dzn)" (activated)="exportProject()" />
+    <app-icon-button icon="upload" label="Import project (.dzn)" (activated)="pickProjectFile()" />
+    <input
+      #importInput
+      type="file"
+      accept=".dzn"
+      hidden
+      (change)="onProjectFileSelected($event)"
+    />
+    @if (importError(); as message) {
+      <span class="toolbar__error" role="alert">{{ message }}</span>
+    }
+  </div>
+
+  <span class="toolbar__divider" role="separator"></span>
+
   <div class="toolbar__group" role="group" aria-label="History">
     <app-icon-button
       icon="undo"
