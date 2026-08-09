@@ -49,13 +49,49 @@ export const PROJECT_ASSET_SIZE_THRESHOLD_BYTES = 50 * 1024;
 /** Prefix an externalized `ImageElement.src` is replaced with, e.g. `asset:img-<hash>.png`. */
 export const PROJECT_ASSET_URI_PREFIX = 'asset:';
 
-export function isProjectManifest(value: unknown): value is ProjectManifest {
+/** Shape common to every manifest version that has ever shipped — enough to read `formatVersion` off it before migrating up. */
+interface RawManifest {
+  readonly formatVersion: number;
+  readonly title: string;
+}
+
+function isRawManifest(value: unknown): value is RawManifest {
   return (
     !!value &&
     typeof value === 'object' &&
-    (value as ProjectManifest).formatVersion === PROJECT_FILE_FORMAT_VERSION &&
-    typeof (value as ProjectManifest).title === 'string'
+    typeof (value as RawManifest).formatVersion === 'number' &&
+    typeof (value as RawManifest).title === 'string'
   );
+}
+
+/**
+ * One entry per past format bump, keyed by the version it upgrades *from*. Empty today — format v1 is
+ * the only version that has ever shipped — but this is the seam a future `manifest.json` field addition
+ * hooks into (e.g. `MANIFEST_MIGRATIONS[1] = (m) => ({ ...m, formatVersion: 2, fonts: [] })`) so an
+ * already-exported v1 `.dzn` keeps opening instead of failing "newer, incompatible version".
+ */
+const MANIFEST_MIGRATIONS: Record<number, (manifest: RawManifest) => RawManifest> = {};
+
+/**
+ * Validates and migrates a raw parsed `manifest.json` up to {@link PROJECT_FILE_FORMAT_VERSION}.
+ * Returns `null` for a malformed manifest or one from a future, not-yet-understood format version;
+ * throws only if an older version is missing a registered migration step (a broken migration chain,
+ * not a bad file — a bug worth surfacing loudly rather than swallowing as "invalid file").
+ */
+export function parseProjectManifest(value: unknown): ProjectManifest | null {
+  if (!isRawManifest(value) || value.formatVersion > PROJECT_FILE_FORMAT_VERSION) {
+    return null;
+  }
+
+  let manifest = value;
+  while (manifest.formatVersion < PROJECT_FILE_FORMAT_VERSION) {
+    const migrate = MANIFEST_MIGRATIONS[manifest.formatVersion];
+    if (!migrate) {
+      throw new Error(`No migration registered from .dzn format v${manifest.formatVersion}.`);
+    }
+    manifest = migrate(manifest);
+  }
+  return manifest as ProjectManifest;
 }
 
 /** The asset filename referenced by an externalized `src`, e.g. `img-<hash>.png`. */

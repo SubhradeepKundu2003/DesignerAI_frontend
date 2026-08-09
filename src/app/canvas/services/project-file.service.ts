@@ -14,7 +14,7 @@ import {
   PROJECT_THUMBNAIL_ENTRY,
   ProjectManifest,
   assetRefFilename,
-  isProjectManifest,
+  parseProjectManifest,
 } from '../models/project-file.model';
 import { ThumbnailSnapshotService } from '../renderers/thumbnail-snapshot.service';
 import { CanvasStore } from '../state/canvas.store';
@@ -110,8 +110,8 @@ async function readProjectFile(file: File): Promise<CanvasDocument> {
     throw new Error(`Not a valid .${PROJECT_FILE_EXTENSION} project file.`);
   }
 
-  const manifest: unknown = JSON.parse(await manifestEntry.async('string'));
-  if (!isProjectManifest(manifest)) {
+  const manifest = parseProjectManifest(JSON.parse(await manifestEntry.async('string')));
+  if (!manifest) {
     throw new Error('This project file was made by a newer, incompatible version of the app.');
   }
 

@@ -178,7 +178,7 @@ describe('ProjectFileService', () => {
     expect(service.importError()).toContain('.dzn');
   });
 
-  it('should report an error for a manifest with an unsupported format version', async () => {
+  it('should report an error for a manifest with an unsupported (newer) format version', async () => {
     const before = canvas.document();
     const file = await buildProjectFile(canvas.document(), { formatVersion: 99 as 1 });
 
@@ -186,6 +186,19 @@ describe('ProjectFileService', () => {
 
     expect(canvas.document()).toEqual(before);
     expect(service.importError()).toContain('newer');
+  });
+
+  it('should report an error rather than crash for a manifest older than any registered migration', async () => {
+    // The migration registry is empty today (v1 is the only version that has ever shipped), so an
+    // older version than current has nowhere to migrate from — this exercises that failure path
+    // without waiting for a real v2 format to exist.
+    const before = canvas.document();
+    const file = await buildProjectFile(canvas.document(), { formatVersion: 0 as 1 });
+
+    await service.importProject(file);
+
+    expect(canvas.document()).toEqual(before);
+    expect(service.importError()).not.toBeNull();
   });
 
   it('should report an error for a document that fails validation', async () => {
