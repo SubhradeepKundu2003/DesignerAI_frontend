@@ -10,11 +10,12 @@ import { EditorSettingsStore } from '../../canvas/state/editor-settings.store';
 import { ThemeStore } from '../../canvas/state/theme.store';
 import { ViewportStore } from '../../canvas/state/viewport.store';
 import { IconButton } from '../../shared/components/icon-button/icon-button';
+import { ExportMenu } from './export-menu/export-menu';
 
 /** Top toolbar: history, object actions, canvas aids and the zoom readout. */
 @Component({
   selector: 'app-editor-toolbar',
-  imports: [IconButton],
+  imports: [IconButton, ExportMenu],
   templateUrl: './editor-toolbar.html',
   styleUrl: './editor-toolbar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

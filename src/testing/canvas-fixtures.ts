@@ -7,6 +7,11 @@ import {
   ShapeElement,
   TextElement,
 } from '../app/canvas/models/canvas-element.model';
+import { Page } from '../app/canvas/models/canvas-document.model';
+
+/** A valid, minimal 1x1 transparent PNG — for specs that need a real decodable image without a browser. */
+export const TINY_PNG_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 /**
  * Element builders for specs.
@@ -102,6 +107,20 @@ export function frameElement(overrides: Partial<FrameElement> = {}): FrameElemen
     gap: 20,
     padding: 20,
     childIds: [],
+    ...overrides,
+  };
+}
+
+export function pageFixture(overrides: Partial<Page> = {}): Page {
+  sequence += 1;
+  return {
+    id: `page-${sequence}`,
+    name: `Page ${sequence}`,
+    width: 960,
+    height: 540,
+    background: '#ffffff',
+    elements: [],
+    groups: [],
     ...overrides,
   };
 }

@@ -9,7 +9,7 @@ import { ElementRendererRegistry } from './element-renderer.registry';
 import { applyBaseAttrs } from './element-renderer';
 
 /** Kept small: a project-file thumbnail is a filmstrip image, not a print asset. */
-const THUMBNAIL_PIXEL_RATIO = 0.25;
+export const THUMBNAIL_PIXEL_RATIO = 0.25;
 
 /**
  * A stuck or unfired decode (a data URL a test environment never actually
@@ -19,8 +19,11 @@ const THUMBNAIL_PIXEL_RATIO = 0.25;
 const IMAGE_LOAD_TIMEOUT_MS = 2000;
 
 /**
- * Renders a page to a PNG data URL for the `.dzn` project file's
- * `thumbnail.png`, using a Konva stage that is never attached to the DOM.
+ * Renders a page to a PNG data URL, using a Konva stage that is never
+ * attached to the DOM. Originally built for the `.dzn` project file's
+ * `thumbnail.png` (low-res filmstrip image); Track F's PDF/PNG export reuses
+ * the same stage-building logic at a higher `pixelRatio` for print-quality
+ * output — one offscreen-render implementation, two consumers.
  *
  * Deliberately doesn't reuse `Reconciler`/`PageRenderer`: those are wired to a
  * live, mounted stage and `CanvasStore` (for group visibility cascading),
@@ -31,7 +34,7 @@ const IMAGE_LOAD_TIMEOUT_MS = 2000;
  */
 @Injectable({ providedIn: 'root' })
 export class ThumbnailSnapshotService {
-  async snapshot(page: Page): Promise<string> {
+  async snapshot(page: Page, pixelRatio: number = THUMBNAIL_PIXEL_RATIO): Promise<string> {
     const stage = new Konva.Stage({
       container: document.createElement('div'),
       width: Math.max(page.width, 1),
@@ -58,7 +61,7 @@ export class ThumbnailSnapshotService {
       }
 
       layer.draw();
-      return stage.toDataURL({ pixelRatio: THUMBNAIL_PIXEL_RATIO, mimeType: 'image/png' });
+      return stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
     } finally {
       stage.destroy();
     }

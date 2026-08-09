@@ -1,0 +1,26 @@
+<div class="export-menu">
+  <app-icon-button icon="download" label="Export design" (activated)="toggle()" />
+
+  @if (open()) {
+    <div class="export-menu__panel" role="menu">
+      <app-select-input
+        label="Format"
+        [value]="format()"
+        [options]="formatOptions"
+        (valueChange)="setFormat($event)"
+      />
+      <app-select-input
+        label="Pages"
+        [value]="range()"
+        [options]="rangeOptions"
+        (valueChange)="setRange($event)"
+      />
+      @if (error(); as message) {
+        <span class="export-menu__error" role="alert">{{ message }}</span>
+      }
+      <button type="button" class="export-menu__confirm" [disabled]="busy()" (click)="runExport()">
+        {{ busy() ? 'Exporting…' : 'Export' }}
+      </button>
+    </div>
+  }
+</div>
