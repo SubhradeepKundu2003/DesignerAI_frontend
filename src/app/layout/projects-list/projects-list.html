@@ -6,6 +6,33 @@
     </button>
   </header>
 
+  @if (legacyDocument()) {
+    <div class="legacy-banner">
+      <p class="legacy-banner__text">
+        We found a design saved in this browser from before projects existed. Import it so it isn't
+        lost?
+      </p>
+      <div class="legacy-banner__actions">
+        <button type="button" [disabled]="importingLegacy()" (click)="importLegacy()">
+          {{ importingLegacy() ? 'Importing…' : 'Import as a new project' }}
+        </button>
+        <button
+          type="button"
+          class="legacy-banner__dismiss"
+          [disabled]="importingLegacy()"
+          (click)="dismissLegacy()"
+        >
+          Not now
+        </button>
+      </div>
+      @if (legacyImportError()) {
+        <p class="legacy-banner__error">
+          Import failed — check that the backend is running and try again.
+        </p>
+      }
+    </div>
+  }
+
   @if (loading()) {
     <p class="page__status">Loading your projects…</p>
   } @else if (loadError()) {
