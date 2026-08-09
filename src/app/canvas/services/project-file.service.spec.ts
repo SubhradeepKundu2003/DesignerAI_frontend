@@ -22,7 +22,10 @@ async function zipFile(entries: Record<string, string>): Promise<File> {
   return new File([blob], 'design.dzn');
 }
 
-async function buildProjectFile(document: CanvasDocument, manifestOverrides: Partial<ProjectManifest> = {}): Promise<File> {
+async function buildProjectFile(
+  document: CanvasDocument,
+  manifestOverrides: Partial<ProjectManifest> = {},
+): Promise<File> {
   const manifest: ProjectManifest = {
     formatVersion: PROJECT_FILE_FORMAT_VERSION,
     appVersion: '0.1.0',
@@ -77,7 +80,9 @@ describe('ProjectFileService', () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     const blob = createObjectURL.mock.calls[0][0] as Blob;
     const zip = await JSZip.loadAsync(blob);
-    const manifest = JSON.parse(await zip.file('manifest.json')!.async('string')) as ProjectManifest;
+    const manifest = JSON.parse(
+      await zip.file('manifest.json')!.async('string'),
+    ) as ProjectManifest;
     const document = JSON.parse(await zip.file('document.json')!.async('string')) as CanvasDocument;
 
     expect(manifest.formatVersion).toBe(PROJECT_FILE_FORMAT_VERSION);
@@ -116,6 +121,40 @@ describe('ProjectFileService', () => {
     expect(await assetEntry!.async('base64')).toBe('A'.repeat(70000));
   });
 
+  it('should externalize a backend-hosted image (Track K2: export after a backend-loaded project) by fetching its bytes into assets/', async () => {
+    const backendUrl = 'http://localhost:8000/assets/abc123';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' })),
+    );
+    canvas.insertElement(imageElement({ src: backendUrl }));
+
+    await service.exportProject();
+
+    expect(fetch).toHaveBeenCalledWith(backendUrl);
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    const zip = await JSZip.loadAsync(blob);
+    const document = JSON.parse(await zip.file('document.json')!.async('string')) as CanvasDocument;
+
+    const src = (document.pages[0].elements[0] as ImageElement).src;
+    expect(src).toMatch(/^asset:img-[0-9a-f]{8}\.png$/);
+    expect(zip.file(`assets/${src.slice('asset:'.length)}`)).not.toBeNull();
+  });
+
+  it('should leave a backend-hosted image as a live URL when the fetch to inline it fails', async () => {
+    const backendUrl = 'http://localhost:8000/assets/unreachable';
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+    canvas.insertElement(imageElement({ src: backendUrl }));
+
+    await service.exportProject();
+
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    const zip = await JSZip.loadAsync(blob);
+    const document = JSON.parse(await zip.file('document.json')!.async('string')) as CanvasDocument;
+
+    expect((document.pages[0].elements[0] as ImageElement).src).toBe(backendUrl);
+    expect(Object.keys(zip.files).some((name) => name.startsWith('assets/'))).toBe(false);
+  });
+
   it('should dedupe identical large images to a single asset file', async () => {
     canvas.insertElement(imageElement({ src: LARGE_IMAGE_SRC }));
     canvas.insertElement(imageElement({ src: LARGE_IMAGE_SRC }));
@@ -128,7 +167,9 @@ describe('ProjectFileService', () => {
 
     const [first, second] = document.pages[0].elements as ImageElement[];
     expect(first.src).toBe(second.src);
-    expect(Object.values(zip.files).filter((entry) => !entry.dir && entry.name.startsWith('assets/'))).toHaveLength(1);
+    expect(
+      Object.values(zip.files).filter((entry) => !entry.dir && entry.name.startsWith('assets/')),
+    ).toHaveLength(1);
   });
 
   it('should rehydrate an asset: ref back to a blob URL on import', async () => {
@@ -170,7 +211,9 @@ describe('ProjectFileService', () => {
 
   it('should report an error and leave the document untouched for a file missing document.json', async () => {
     const before = canvas.document();
-    const file = await zipFile({ 'manifest.json': JSON.stringify({ formatVersion: PROJECT_FILE_FORMAT_VERSION, title: 'x' }) });
+    const file = await zipFile({
+      'manifest.json': JSON.stringify({ formatVersion: PROJECT_FILE_FORMAT_VERSION, title: 'x' }),
+    });
 
     await service.importProject(file);
 
