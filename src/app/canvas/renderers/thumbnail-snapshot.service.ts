@@ -86,6 +86,10 @@ async function loadImageBitmaps(elements: readonly CanvasElement[]): Promise<Map
           }
           const timer = setTimeout(resolve, IMAGE_LOAD_TIMEOUT_MS);
           const bitmap = new Image();
+          // Backend-hosted assets (Track I3) are cross-origin from the dev
+          // server; without this the snapshot canvas gets tainted the moment
+          // one is drawn onto it. No-op for data/blob URLs.
+          bitmap.crossOrigin = 'anonymous';
           bitmap.onload = () => {
             clearTimeout(timer);
             bitmaps.set(src, bitmap);

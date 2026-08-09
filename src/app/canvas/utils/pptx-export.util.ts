@@ -183,6 +183,9 @@ function rasterizeImageSrc(src: string, width: number, height: number): Promise<
     }
     const timer = setTimeout(() => resolve(undefined), IMAGE_LOAD_TIMEOUT_MS);
     const image = new Image();
+    // Backend-hosted assets (Track I3) are cross-origin from the dev server;
+    // without this, toDataURL below throws on a tainted canvas.
+    image.crossOrigin = 'anonymous';
     image.onload = () => {
       clearTimeout(timer);
       const canvas = document.createElement('canvas');

@@ -21,10 +21,16 @@ function blankDocument(pageId = 'p1'): CanvasDocument {
   };
 }
 
-/** Effects flush on a microtask; give the scheduler a turn to run. */
+/**
+ * Effects flush on a microtask, and `writeDocument` now chains through
+ * `AssetExternalizationService.externalize` (itself several `Promise.all`
+ * levels deep) before the HTTP call is dispatched — give the scheduler
+ * generous room to drain all of it rather than counting exact ticks.
+ */
 async function flushEffects(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let i = 0; i < 10; i++) {
+    await Promise.resolve();
+  }
 }
 
 describe('PersistenceService', () => {
@@ -85,12 +91,13 @@ describe('PersistenceService', () => {
     expect(canvas.document()).toEqual(before);
   });
 
-  it('should write the document to the backend and flag hasSave on manual save', () => {
+  it('should write the document to the backend and flag hasSave on manual save', async () => {
     persistence.openProject(PROJECT_ID);
     http.expectOne(documentUrl()).flush(blankDocument());
     canvas.insertElement(shapeElement());
 
     persistence.save();
+    await flushEffects();
 
     const req = http.expectOne(documentUrl());
     expect(req.request.method).toBe('PUT');
@@ -101,24 +108,26 @@ describe('PersistenceService', () => {
     expect(JSON.parse(localStorage.getItem(CACHE_KEY)!)).toEqual(canvas.document());
   });
 
-  it('should still cache locally when a manual save fails to reach the backend', () => {
+  it('should still cache locally when a manual save fails to reach the backend', async () => {
     persistence.openProject(PROJECT_ID);
     http.expectOne(documentUrl()).flush(blankDocument());
     canvas.insertElement(shapeElement());
 
     persistence.save();
+    await flushEffects();
 
     http.expectOne(documentUrl()).error(new ProgressEvent('offline'));
 
     expect(JSON.parse(localStorage.getItem(CACHE_KEY)!)).toEqual(canvas.document());
   });
 
-  it('should flash justSaved and clear it after a delay', () => {
+  it('should flash justSaved and clear it after a delay', async () => {
     persistence.openProject(PROJECT_ID);
     http.expectOne(documentUrl()).flush(blankDocument());
 
     persistence.save();
     expect(persistence.justSaved()).toBe(true);
+    await flushEffects();
     http.expectOne(documentUrl()).flush(blankDocument());
 
     vi.advanceTimersByTime(1600);
@@ -133,6 +142,7 @@ describe('PersistenceService', () => {
     await flushEffects();
 
     vi.advanceTimersByTime(2000);
+    await flushEffects();
     http.expectOne(documentUrl()).flush(canvas.document());
 
     expect(persistence.hasSave()).toBe(true);
@@ -154,6 +164,7 @@ describe('PersistenceService', () => {
     http.expectNone(documentUrl());
 
     vi.advanceTimersByTime(1000);
+    await flushEffects();
     const req = http.expectOne(documentUrl());
     req.flush(canvas.document());
     expect(req.request.body).toEqual(canvas.document());
@@ -169,13 +180,14 @@ describe('PersistenceService', () => {
     expect(localStorage.length).toBe(0);
   });
 
-  it('should load the saved document from the backend as one undoable step', () => {
+  it('should load the saved document from the backend as one undoable step', async () => {
     persistence.openProject(PROJECT_ID);
     http.expectOne(documentUrl()).flush(blankDocument());
 
     const original = shapeElement({ name: 'Original' });
     canvas.insertElement(original);
     persistence.save();
+    await flushEffects();
     http.expectOne(documentUrl()).flush(canvas.document());
 
     canvas.insertElement(shapeElement({ name: 'Unsaved addition' }));

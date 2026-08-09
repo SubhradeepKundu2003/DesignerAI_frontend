@@ -52,6 +52,10 @@ export class ImageRenderer implements ElementRenderer<ImageElement, KonvaImage> 
     }
 
     const bitmap = new Image();
+    // Backend-hosted assets (Track I3) are cross-origin from the dev server;
+    // without this, drawing the bitmap taints any canvas that reads pixels
+    // back out of it (thumbnails, PDF/PNG export). No-op for data/blob URLs.
+    bitmap.crossOrigin = 'anonymous';
     bitmap.onload = () => {
       this.decoded.set(src, bitmap);
       // The node may have been destroyed, or pointed at something else, while

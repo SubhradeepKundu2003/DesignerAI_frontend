@@ -6,6 +6,7 @@ import { CommandBus } from '../commands/command-bus.service';
 import { LoadCanvasCommand } from '../commands/load-canvas.command';
 import { CanvasDocument, isCanvasDocument } from '../models/canvas-document.model';
 import { CanvasStore } from '../state/canvas.store';
+import { AssetExternalizationService } from './asset-externalization.service';
 
 const CACHE_KEY_PREFIX = 'designerai:canvas:';
 const AUTOSAVE_DELAY_MS = 2000;
@@ -30,6 +31,7 @@ export class PersistenceService {
   private readonly canvas = inject(CanvasStore);
   private readonly commands = inject(CommandBus);
   private readonly api = inject(ProjectApiService);
+  private readonly externalization = inject(AssetExternalizationService);
 
   /** True for a moment after an explicit save, for the toolbar's "Saved" cue. */
   readonly justSaved = signal(false);
@@ -126,13 +128,23 @@ export class PersistenceService {
       return;
     }
 
+    // The cache keeps the document exactly as the editor holds it (inline
+    // data URLs and all) — only the backend copy gets large images
+    // externalized, the same "build a new document for this one
+    // destination, never mutate CanvasStore" pattern ProjectFileService's
+    // .dzn export already uses (Track G2).
     this.writeCache(projectId, document);
-    this.api.saveDocument(projectId, document).subscribe({
-      next: () => this.hasSave.set(true),
-      // A network blip leaves the cache write above as this save's only
-      // effect; the next autosave tick (or an explicit Save) retries.
-      error: () => {},
-    });
+    this.externalization.externalize(projectId, document).then(
+      (externalized) => {
+        this.api.saveDocument(projectId, externalized).subscribe({
+          next: () => this.hasSave.set(true),
+          // A network blip leaves the cache write above as this save's only
+          // effect; the next autosave tick (or an explicit Save) retries.
+          error: () => {},
+        });
+      },
+      () => {}, // an asset upload failure is the same "retry next tick" story
+    );
   }
 
   private writeCache(projectId: string, document: CanvasDocument): void {
