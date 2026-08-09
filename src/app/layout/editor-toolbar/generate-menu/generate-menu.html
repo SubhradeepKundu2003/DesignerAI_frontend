@@ -1,0 +1,39 @@
+<div class="generate-menu">
+  <app-icon-button icon="generate" label="Generate design" (activated)="toggle()" />
+
+  @if (summary(); as message) {
+    <span class="generate-menu__summary">{{ message }}</span>
+  }
+
+  @if (open()) {
+    <div class="generate-menu__panel" role="menu">
+      <app-select-input
+        label="Page"
+        [value]="targetPageId() ?? ''"
+        [options]="pageOptions()"
+        (valueChange)="setTargetPage($event)"
+      />
+      <label class="generate-menu__field">
+        <span class="generate-menu__label">Prompt</span>
+        <textarea
+          class="generate-menu__prompt"
+          rows="3"
+          placeholder="Describe the design you want…"
+          [value]="prompt()"
+          (input)="setPrompt($any($event.target).value)"
+        ></textarea>
+      </label>
+      @if (error(); as message) {
+        <span class="generate-menu__error" role="alert">{{ message }}</span>
+      }
+      <button
+        type="button"
+        class="generate-menu__confirm"
+        [disabled]="busy() || !prompt().trim()"
+        (click)="generate()"
+      >
+        {{ busy() ? 'Generating…' : 'Generate' }}
+      </button>
+    </div>
+  }
+</div>

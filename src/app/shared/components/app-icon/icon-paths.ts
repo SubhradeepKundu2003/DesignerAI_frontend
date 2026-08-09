@@ -177,9 +177,21 @@ export const ICON_PATHS = {
     path('M17 12h4'),
     { kind: 'circle', cx: 12, cy: 12, r: 3 },
   ],
+  generate: [
+    path('M11 2c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6Z'),
+    path(
+      'M19 14c.2 1.4.9 2.1 2.3 2.3-1.4.2-2.1.9-2.3 2.3-.2-1.4-.9-2.1-2.3-2.3 1.4-.2 2.1-.9 2.3-2.3Z',
+    ),
+  ],
   frame: [
     { kind: 'rect', x: 3, y: 7, width: 8, height: 10, rx: 1.5 },
     { kind: 'rect', x: 13, y: 7, width: 8, height: 10, rx: 1.5 },
+  ],
+  lint: [
+    { kind: 'rect', x: 4, y: 3, width: 16, height: 18, rx: 2 },
+    path('M8 8h5'),
+    path('M8 12h5'),
+    path('m8 16 1.5 1.5L13 14'),
   ],
   ungroupFrame: [
     { kind: 'rect', x: 3, y: 4, width: 7, height: 7, rx: 1.5 },

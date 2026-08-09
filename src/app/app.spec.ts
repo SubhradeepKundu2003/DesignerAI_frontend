@@ -4,6 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
+import { AgentClient } from './canvas/agent/agent-client';
+import { MockAgentClient } from './canvas/agent/mock-agent-client';
 import { routes } from './app.routes';
 import { App } from './app';
 import { EditorShell } from './layout/editor-shell/editor-shell';
@@ -13,7 +15,12 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes)],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter(routes),
+        { provide: AgentClient, useClass: MockAgentClient },
+      ],
     }).compileComponents();
   });
 

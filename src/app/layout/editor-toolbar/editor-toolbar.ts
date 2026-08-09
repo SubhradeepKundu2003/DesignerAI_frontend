@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  inject,
+  viewChild,
+} from '@angular/core';
 
 import { ApplyThemeCommand } from '../../canvas/commands/apply-theme.command';
 import { CommandBus } from '../../canvas/commands/command-bus.service';
@@ -11,11 +18,13 @@ import { ThemeStore } from '../../canvas/state/theme.store';
 import { ViewportStore } from '../../canvas/state/viewport.store';
 import { IconButton } from '../../shared/components/icon-button/icon-button';
 import { ExportMenu } from './export-menu/export-menu';
+import { GenerateMenu } from './generate-menu/generate-menu';
+import { LintMenu } from './lint-menu/lint-menu';
 
 /** Top toolbar: history, object actions, canvas aids and the zoom readout. */
 @Component({
   selector: 'app-editor-toolbar',
-  imports: [IconButton, ExportMenu],
+  imports: [IconButton, ExportMenu, GenerateMenu, LintMenu],
   templateUrl: './editor-toolbar.html',
   styleUrl: './editor-toolbar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

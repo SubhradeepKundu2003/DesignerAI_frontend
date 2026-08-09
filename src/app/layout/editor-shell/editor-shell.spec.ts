@@ -4,6 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 
+import { AgentClient } from '../../canvas/agent/agent-client';
+import { MockAgentClient } from '../../canvas/agent/mock-agent-client';
 import { environment } from '../../../environments/environment';
 import { EditorShell } from './editor-shell';
 
@@ -22,6 +24,7 @@ describe('EditorShell', () => {
           provide: ActivatedRoute,
           useValue: { paramMap: of(convertToParamMap({ id: 'project-1' })) },
         },
+        { provide: AgentClient, useClass: MockAgentClient },
       ],
     }).compileComponents();
 

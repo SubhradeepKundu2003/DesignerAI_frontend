@@ -1,0 +1,18 @@
+<div class="lint-menu">
+  <app-icon-button icon="lint" label="Check design" (activated)="toggle()" />
+
+  @if (open()) {
+    <div class="lint-menu__panel" role="menu">
+      @if (issues().length === 0) {
+        <p class="lint-menu__empty">No issues found.</p>
+      } @else {
+        <ul class="lint-menu__list">
+          @for (issue of issues(); track issue.rule + issue.elementIds.join(',')) {
+            <li class="lint-menu__issue">{{ issue.message }}</li>
+          }
+        </ul>
+      }
+      <button type="button" class="lint-menu__recheck" (click)="recheck()">Recheck</button>
+    </div>
+  }
+</div>

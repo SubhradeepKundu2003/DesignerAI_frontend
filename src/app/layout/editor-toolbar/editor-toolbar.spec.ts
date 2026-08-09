@@ -3,6 +3,8 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { shapeElement } from '../../../testing/canvas-fixtures';
+import { AgentClient } from '../../canvas/agent/agent-client';
+import { MockAgentClient } from '../../canvas/agent/mock-agent-client';
 import { AddElementCommand } from '../../canvas/commands/add-element.command';
 import { CommandBus } from '../../canvas/commands/command-bus.service';
 import { ProjectFileService } from '../../canvas/services/project-file.service';
@@ -27,7 +29,11 @@ describe('EditorToolbar', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [EditorToolbar],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AgentClient, useClass: MockAgentClient },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(EditorToolbar);

@@ -17,13 +17,7 @@
   <div class="toolbar__group" role="group" aria-label="Project file">
     <app-icon-button icon="download" label="Export project (.dzn)" (activated)="exportProject()" />
     <app-icon-button icon="upload" label="Import project (.dzn)" (activated)="pickProjectFile()" />
-    <input
-      #importInput
-      type="file"
-      accept=".dzn"
-      hidden
-      (change)="onProjectFileSelected($event)"
-    />
+    <input #importInput type="file" accept=".dzn" hidden (change)="onProjectFileSelected($event)" />
     @if (importError(); as message) {
       <span class="toolbar__error" role="alert">{{ message }}</span>
     }
@@ -33,6 +27,18 @@
 
   <div class="toolbar__group" role="group" aria-label="Export">
     <app-export-menu />
+  </div>
+
+  <span class="toolbar__divider" role="separator"></span>
+
+  <div class="toolbar__group" role="group" aria-label="Generate">
+    <app-generate-menu />
+  </div>
+
+  <span class="toolbar__divider" role="separator"></span>
+
+  <div class="toolbar__group" role="group" aria-label="Design check">
+    <app-lint-menu />
   </div>
 
   <span class="toolbar__divider" role="separator"></span>
