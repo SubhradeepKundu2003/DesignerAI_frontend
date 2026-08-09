@@ -19,5 +19,16 @@ export interface InfographicTemplate {
   readonly size: { readonly width: number; readonly height: number };
   /** Small flattened preview for the Assets panel tile — not placed on the page. */
   readonly thumbnail: string;
-  build(origin: { x: number; y: number }): CanvasElement[];
+  /**
+   * `content` lets document-generation (`NewsletterAssembler`) inject real
+   * extracted copy in place of a template's hardcoded placeholder text —
+   * only the handful of templates that opted into this (Track P4) read it;
+   * every template still produces its normal placeholder output when called
+   * with no second argument, so manual insertion from the Assets panel is
+   * unaffected. Untyped here since each template defines its own shape
+   * (a list of bars, a single stat, a quote, ...) — callers that need to
+   * pass content already know which template they matched and cast to that
+   * template's own exported content type (e.g. `StatCalloutContent`).
+   */
+  build(origin: { x: number; y: number }, content?: unknown): CanvasElement[];
 }

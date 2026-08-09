@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { frameElement, pageFixture, textElement } from '../../../testing/canvas-fixtures';
+import { frameElement, groupElement, pageFixture, shapeElement, textElement } from '../../../testing/canvas-fixtures';
 import { DesignLintService, LintRule } from './design-lint.service';
 
 describe('DesignLintService', () => {
@@ -89,7 +89,7 @@ describe('DesignLintService', () => {
     const b = textElement({ x: 50, y: 10, width: 100, height: 40 });
     const page = pageFixture({ elements: [a, b] });
 
-    const issue = service.lint(page).find((candidate) => candidate.rule === 'overlapping-text');
+    const issue = service.lint(page).find((candidate) => candidate.rule === 'overlapping-elements');
     expect(issue?.elementIds).toEqual([a.id, b.id]);
   });
 
@@ -98,7 +98,41 @@ describe('DesignLintService', () => {
     const b = textElement({ x: 200, y: 200, width: 100, height: 40 });
     const page = pageFixture({ elements: [a, b] });
 
-    expect(rules(service.lint(page))).not.toContain('overlapping-text');
+    expect(rules(service.lint(page))).not.toContain('overlapping-elements');
+  });
+
+  it('does not flag two elements of the same group that overlap by design', () => {
+    const a = textElement({ id: 'a', parentId: 'group-1', x: 0, y: 0, width: 100, height: 40 });
+    const b = textElement({ id: 'b', parentId: 'group-1', x: 10, y: 10, width: 100, height: 40 });
+    const page = pageFixture({
+      elements: [a, b],
+      groups: [groupElement({ id: 'group-1', name: 'Infographic', childIds: ['a', 'b'] })],
+    });
+
+    expect(rules(service.lint(page))).not.toContain('overlapping-elements');
+  });
+
+  it('flags two different groups whose bounding boxes overlap, naming each group', () => {
+    const a = textElement({ id: 'a', parentId: 'group-1', x: 0, y: 0, width: 100, height: 40 });
+    const b = textElement({ id: 'b', parentId: 'group-2', x: 50, y: 10, width: 100, height: 40 });
+    const page = pageFixture({
+      elements: [a, b],
+      groups: [
+        groupElement({ id: 'group-1', name: 'Bar chart', childIds: ['a'] }),
+        groupElement({ id: 'group-2', name: 'KPI dashboard', childIds: ['b'] }),
+      ],
+    });
+
+    const issue = service.lint(page).find((candidate) => candidate.rule === 'overlapping-elements');
+    expect(issue?.message).toBe('"Bar chart" overlaps "KPI dashboard".');
+  });
+
+  it('flags a non-text element overlapping another, not just text-vs-text', () => {
+    const a = shapeElement({ id: 'a', x: 0, y: 0, width: 100, height: 40 });
+    const b = shapeElement({ id: 'b', x: 50, y: 10, width: 100, height: 40 });
+    const page = pageFixture({ elements: [a, b] });
+
+    expect(rules(service.lint(page))).toContain('overlapping-elements');
   });
 
   it('flags an empty frame', () => {

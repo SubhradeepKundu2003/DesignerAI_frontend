@@ -14,14 +14,44 @@
         (drop)="onDrop($event, page.id)"
         (dragend)="onDragEnd()"
       >
-        <div class="page__thumb" [style.aspectRatio]="page.width + ' / ' + page.height">
-          <div class="page__sheet" [style.background]="page.background">
+        <div class="page__slot">
+          <div
+            class="page__sheet"
+            [style.width.px]="sheetSize(page).width"
+            [style.height.px]="sheetSize(page).height"
+            [style.background]="page.background"
+          >
             @for (swatch of swatches(page); track swatch.id) {
               @if (swatch.image) {
                 <img class="page__swatch page__swatch--image" [ngStyle]="swatch.style" [src]="swatch.image" alt="" />
               } @else {
                 <div class="page__swatch" [ngStyle]="swatch.style"></div>
               }
+            }
+          </div>
+
+          <span class="page__number">{{ index + 1 }}</span>
+
+          <div class="page__actions">
+            <button
+              type="button"
+              class="page__action"
+              title="Duplicate page"
+              aria-label="Duplicate page"
+              (click)="duplicatePage(page, $event)"
+            >
+              <app-icon name="duplicate" [size]="12" />
+            </button>
+            @if (canDelete()) {
+              <button
+                type="button"
+                class="page__action"
+                title="Delete page"
+                aria-label="Delete page"
+                (click)="deletePage(page, $event)"
+              >
+                <app-icon name="trash" [size]="12" />
+              </button>
             }
           </div>
         </div>
@@ -40,34 +70,14 @@
             <span class="page__name" (dblclick)="startRename(page, $event)">{{ label(page, index) }}</span>
           }
         </div>
-
-        <div class="page__actions">
-          <button
-            type="button"
-            class="page__action"
-            title="Duplicate page"
-            aria-label="Duplicate page"
-            (click)="duplicatePage(page, $event)"
-          >
-            <app-icon name="duplicate" [size]="12" />
-          </button>
-          @if (canDelete()) {
-            <button
-              type="button"
-              class="page__action"
-              title="Delete page"
-              aria-label="Delete page"
-              (click)="deletePage(page, $event)"
-            >
-              <app-icon name="trash" [size]="12" />
-            </button>
-          }
-        </div>
       </li>
     }
   </ul>
 
   <button type="button" class="add" title="Add page" aria-label="Add page" (click)="addPage()">
-    <app-icon name="plus" [size]="16" />
+    <span class="add__slot">
+      <app-icon name="plus" [size]="16" />
+    </span>
+    <span class="add__label">Add</span>
   </button>
 </div>

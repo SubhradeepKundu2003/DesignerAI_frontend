@@ -31,6 +31,10 @@ interface Swatch {
   readonly image: string | null;
 }
 
+/** Must match the `.page__slot` box size in page-navigator.scss. */
+const SLOT_WIDTH = 72;
+const SLOT_HEIGHT = 68;
+
 /**
  * Horizontal filmstrip below the canvas: every page in the document, in
  * order, with add/duplicate/delete/rename and drag-to-reorder.
@@ -83,6 +87,22 @@ export class PageNavigator {
 
   protected swatches(page: Page): readonly Swatch[] {
     return page.elements.map((element) => toSwatch(element, page.width, page.height));
+  }
+
+  /**
+   * Fits the page into the fixed `.page__slot` box (contain, not cover) so
+   * every thumbnail occupies the same footprint regardless of the page's own
+   * orientation — portrait pages no longer push the name label out of view.
+   */
+  protected sheetSize(page: Page): { width: number; height: number } {
+    const ratio = page.width / page.height;
+    let width = SLOT_WIDTH;
+    let height = width / ratio;
+    if (height > SLOT_HEIGHT) {
+      height = SLOT_HEIGHT;
+      width = height * ratio;
+    }
+    return { width, height };
   }
 
   protected select(id: string): void {

@@ -1,15 +1,23 @@
 import { Injectable } from '@angular/core';
-import { Observable, delay, of } from 'rxjs';
+import { Observable, delay, from, of } from 'rxjs';
 
 import { ShapeElement, TextElement } from '../models/canvas-element.model';
 import { ThemeColorRef } from '../models/design-theme.model';
 import { PAGE_MARGIN } from '../models/editor-config';
 import { measureTextHeight } from '../utils/text-measure.util';
 import { generateId } from '../utils/id.util';
-import { AgentClient, AgentGenerateRequest, AgentGenerateResult } from './agent-client';
+import {
+  AgentClient,
+  AgentGenerateFromDocumentRequest,
+  AgentGenerateRequest,
+  AgentGenerateResult,
+} from './agent-client';
+import { DocumentGenerateResult, LlmBlock, SectionPlan } from './document-generate.model';
 
 /** Simulated network latency, long enough that the panel's busy state is visibly testable. */
 const RESPONSE_DELAY_MS = 600;
+/** How many source paragraphs the mock bundles onto one page — mirrors `paginate`'s intent, not its exact math. */
+const PARAGRAPHS_PER_PAGE = 3;
 
 const GAP = 16;
 
@@ -27,6 +35,10 @@ const GAP = 16;
 export class MockAgentClient extends AgentClient {
   generate(request: AgentGenerateRequest): Observable<AgentGenerateResult> {
     return of(buildResult(request)).pipe(delay(RESPONSE_DELAY_MS));
+  }
+
+  generateFromDocument(request: AgentGenerateFromDocumentRequest): Observable<DocumentGenerateResult> {
+    return from(request.file.text().then(buildDocumentResult)).pipe(delay(RESPONSE_DELAY_MS));
   }
 }
 
@@ -126,4 +138,41 @@ function headline(prompt: string): string {
   }
   const clipped = trimmed.length > 60 ? `${trimmed.slice(0, 57)}…` : trimmed;
   return clipped.charAt(0).toUpperCase() + clipped.slice(1);
+}
+
+/**
+ * Offline stand-in for `POST /generate/document`: splits the file into
+ * paragraphs and bundles a few onto each page as a heading + body, with no
+ * real section-aware or infographic-aware intelligence — good enough to
+ * exercise `NewsletterAssembler`'s multi-page pipeline without a live
+ * backend, same spirit as {@link buildResult} above.
+ */
+function buildDocumentResult(text: string): DocumentGenerateResult {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  if (paragraphs.length === 0) {
+    return { pages: [{ blocks: [headingBlock('Untitled'), bodyBlock('The uploaded document had no readable text.')] }] };
+  }
+
+  const pages: SectionPlan[] = [];
+  for (let i = 0; i < paragraphs.length; i += PARAGRAPHS_PER_PAGE) {
+    const group = paragraphs.slice(i, i + PARAGRAPHS_PER_PAGE);
+    const blocks: LlmBlock[] = [
+      headingBlock(headline(group[0])),
+      ...group.map((paragraph) => bodyBlock(paragraph)),
+    ];
+    pages.push({ blocks });
+  }
+  return { pages };
+}
+
+function headingBlock(text: string): LlmBlock {
+  return { kind: 'heading', text, tags: [] };
+}
+
+function bodyBlock(text: string): LlmBlock {
+  return { kind: 'body', text, tags: [] };
 }

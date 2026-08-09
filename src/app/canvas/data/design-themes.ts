@@ -85,11 +85,40 @@ export const FOREST_MONO: DesignTheme = {
   spacing: 16,
 };
 
+/**
+ * TCS-inspired corporate theme — deep navy on white with a restrained accent
+ * cycle, matching the dark-navy-and-blue register of TCS's own brand pages
+ * rather than any single verified hex from an internal brand book. Meant for
+ * corporate newsletter pages: sober ink/navy for headings, a cyan accent for
+ * highlights, plus two muted secondary accents so 4-up stat/card templates
+ * still have colour variety without drifting off-brand.
+ */
+export const TCS_CORPORATE: DesignTheme = {
+  id: 'theme-tcs-corporate',
+  name: 'TCS Corporate',
+  colors: {
+    ink: '#051c2c',
+    muted: '#5b6b78',
+    surface: '#ffffff',
+    border: '#dce3e8',
+    accents: [
+      { name: 'TCS Navy', solid: '#04233b', tint: '#e7ecf1' },
+      { name: 'TCS Blue', solid: '#0070ad', tint: '#e5f2fa' },
+      { name: 'Cyan', solid: '#00a3e0', tint: '#e3f6fd' },
+      { name: 'Slate', solid: '#4d6070', tint: '#eef1f4' },
+    ],
+  },
+  fonts: { heading: 'Georgia', body: 'Inter' },
+  radius: 6,
+  spacing: 20,
+};
+
 export const DESIGN_THEME_PRESETS: readonly DesignTheme[] = [
   INDIGO_CLASSIC,
   SLATE_EDITORIAL,
   SUNSET_BOLD,
   FOREST_MONO,
+  TCS_CORPORATE,
 ];
 
 export const DEFAULT_THEME: DesignTheme = INDIGO_CLASSIC;

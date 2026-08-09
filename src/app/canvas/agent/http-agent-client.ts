@@ -3,7 +3,13 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { AgentClient, AgentGenerateRequest, AgentGenerateResult } from './agent-client';
+import {
+  AgentClient,
+  AgentGenerateFromDocumentRequest,
+  AgentGenerateRequest,
+  AgentGenerateResult,
+} from './agent-client';
+import { DocumentGenerateResult } from './document-generate.model';
 
 /**
  * Talks to `designerai-backend`'s `POST /generate` (Track E3) — real Ollama-backed
@@ -21,5 +27,12 @@ export class HttpAgentClient extends AgentClient {
 
   generate(request: AgentGenerateRequest): Observable<AgentGenerateResult> {
     return this.http.post<AgentGenerateResult>(`${this.baseUrl}/generate`, request);
+  }
+
+  generateFromDocument(request: AgentGenerateFromDocumentRequest): Observable<DocumentGenerateResult> {
+    const formData = new FormData();
+    formData.append('file', request.file);
+    formData.append('theme', JSON.stringify(request.theme));
+    return this.http.post<DocumentGenerateResult>(`${this.baseUrl}/generate/document`, formData);
   }
 }

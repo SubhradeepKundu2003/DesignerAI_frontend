@@ -1,7 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Observable, of, throwError } from 'rxjs';
 
-import { AgentClient, AgentGenerateRequest, AgentGenerateResult } from '../../../canvas/agent/agent-client';
+import {
+  AgentClient,
+  AgentGenerateFromDocumentRequest,
+  AgentGenerateRequest,
+  AgentGenerateResult,
+} from '../../../canvas/agent/agent-client';
+import { DocumentGenerateResult } from '../../../canvas/agent/document-generate.model';
 import { CommandBus } from '../../../canvas/commands/command-bus.service';
 import { CanvasStore } from '../../../canvas/state/canvas.store';
 import { pageFixture } from '../../../../testing/canvas-fixtures';
@@ -17,6 +23,10 @@ class FakeAgentClient extends AgentClient {
   override generate(request: AgentGenerateRequest): Observable<AgentGenerateResult> {
     this.lastRequest = request;
     return this.response;
+  }
+
+  override generateFromDocument(_request: AgentGenerateFromDocumentRequest): Observable<DocumentGenerateResult> {
+    return of({ pages: [] });
   }
 }
 

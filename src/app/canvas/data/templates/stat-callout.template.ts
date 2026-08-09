@@ -17,7 +17,18 @@ const STAT_LABEL = 'faster onboarding';
 const HEADLINE = 'Teams that used the new template hit their first milestone in under a week.';
 const BODY = 'Rolled out across 40 pilot teams over the last quarter, measured from kickoff to first shipped result.';
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface StatCalloutContent {
+  readonly stat?: string;
+  readonly statLabel?: string;
+  readonly headline?: string;
+  readonly body?: string;
+}
+
+function build(origin: { x: number; y: number }, content?: StatCalloutContent): CanvasElement[] {
+  const stat = content?.stat ?? STAT;
+  const statLabel = content?.statLabel ?? STAT_LABEL;
+  const headline = content?.headline ?? HEADLINE;
+  const body = content?.body ?? BODY;
   const elements: CanvasElement[] = [];
 
   elements.push(
@@ -30,7 +41,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: 66,
       width: LEFT_WIDTH - 40,
       height: 68,
-      text: STAT,
+      text: stat,
       name: 'Stat value',
       fontSize: 56,
       fontStyle: 'bold',
@@ -43,7 +54,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: 138,
       width: LEFT_WIDTH - 40,
       height: 20,
-      text: STAT_LABEL,
+      text: statLabel,
       name: 'Stat label',
       fontSize: 13.5,
       fill: MUTED,
@@ -57,7 +68,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: 30,
       width: WIDTH - RIGHT_X - 32,
       height: 68,
-      text: HEADLINE,
+      text: headline,
       name: 'Headline',
       fontSize: 19,
       fontStyle: 'bold',
@@ -70,7 +81,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: 108,
       width: WIDTH - RIGHT_X - 32,
       height: 60,
-      text: BODY,
+      text: body,
       name: 'Supporting body',
       fontSize: 13.5,
       fill: MUTED,

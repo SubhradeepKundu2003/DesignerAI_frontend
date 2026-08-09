@@ -1,7 +1,7 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
-import { circle, connector, text, translate } from './template-kit';
+import { circle, connector, mergeFixedList, text, translate } from './template-kit';
 
 const WIDTH = 698;
 const ROW_HEIGHT = 86;
@@ -17,17 +17,23 @@ const STEPS: { title: string; body: string }[] = [
 
 const HEIGHT = STEPS.length * ROW_HEIGHT;
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface VerticalTimelineContent {
+  /** Positionally merged onto the default 5 steps — see `mergeFixedList`. */
+  readonly steps?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: VerticalTimelineContent): CanvasElement[] {
+  const steps = mergeFixedList<(typeof STEPS)[number]>(STEPS, content?.steps);
   const elements: CanvasElement[] = [];
   const nodeCx = NODE_D / 2;
   const firstCy = ROW_HEIGHT / 2;
-  const lastCy = (STEPS.length - 1) * ROW_HEIGHT + ROW_HEIGHT / 2;
+  const lastCy = (steps.length - 1) * ROW_HEIGHT + ROW_HEIGHT / 2;
 
   elements.push(
     connector({ x: nodeCx, y: firstCy }, { x: nodeCx, y: lastCy }, { name: 'Spine', stroke: BORDER, strokeRef: 'border', strokeWidth: 3 }),
   );
 
-  STEPS.forEach((step, i) => {
+  steps.forEach((step, i) => {
     const accentIndex = i % ACCENT_CYCLE.length;
     const accent = ACCENT_CYCLE[accentIndex];
     const rowTop = i * ROW_HEIGHT;

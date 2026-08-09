@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import {
   CanvasElement,
   FrameElement,
+  GroupElement,
   TextElement,
   isFrameElement,
   isTextElement,
@@ -13,7 +14,7 @@ import { boxesIntersect, computeBoundingBox } from '../utils/geometry.util';
 import { measureTextHeight } from '../utils/text-measure.util';
 
 export type LintRule =
-  'out-of-bounds' | 'low-contrast' | 'overlapping-text' | 'empty-frame' | 'text-overflow';
+  'out-of-bounds' | 'low-contrast' | 'overlapping-elements' | 'empty-frame' | 'text-overflow';
 
 export interface LintIssue {
   readonly rule: LintRule;
@@ -33,9 +34,10 @@ const TEXT_OVERFLOW_TOLERANCE_PX = 1;
  * everything `measureTextHeight` (from M5) and the existing bounding-box
  * helpers can already answer without a render pass.
  *
- * One implementation, two callers: Track E4 runs this on agent output before
- * it's committed (reject/retry against the lint errors), and the toolbar's
- * manual "Check design" button runs it for human-made pages.
+ * One implementation, two callers: the document-generation `NewsletterAssembler`
+ * runs this on each assembled page before it's committed (repair/warn against
+ * the lint errors), and the toolbar's manual "Check design" button runs it
+ * for human-made pages.
  */
 @Injectable({ providedIn: 'root' })
 export class DesignLintService {
@@ -57,7 +59,7 @@ export class DesignLintService {
       }
     }
 
-    issues.push(...this.checkOverlappingText(visibleElements.filter(isTextElement)));
+    issues.push(...this.checkOverlappingElements(visibleElements, page.groups ?? []));
 
     return issues;
   }
@@ -143,17 +145,50 @@ export class DesignLintService {
         ];
   }
 
-  private checkOverlappingText(textElements: readonly TextElement[]): LintIssue[] {
+  /**
+   * Checks for overlap at the *placed-block* level, not the raw element
+   * level: elements sharing a `parentId` (a `GroupElement`'s members — e.g.
+   * every part of one hand-placed or document-generated infographic
+   * template, see `buildTemplatePlacement`) are merged into a single
+   * bounding box first. Without this, a template's own intentionally-tight
+   * internal geometry (say, an accent bar flush against its panel edge)
+   * would falsely trip on itself; two different blocks landing on top of
+   * each other — two infographics, or an infographic and a text block —
+   * still always will. Ungrouped elements are their own one-member block,
+   * so this subsumes the old text-vs-text-only check.
+   */
+  private checkOverlappingElements(
+    elements: readonly CanvasElement[],
+    groups: readonly GroupElement[],
+  ): LintIssue[] {
+    const groupNameById = new Map(groups.map((group) => [group.id, group.name]));
+    const blocksByKey = new Map<string, CanvasElement[]>();
+    for (const element of elements) {
+      const key = element.parentId ?? element.id;
+      const block = blocksByKey.get(key);
+      if (block) {
+        block.push(element);
+      } else {
+        blocksByKey.set(key, [element]);
+      }
+    }
+
+    const blocks = [...blocksByKey.entries()].map(([key, members]) => ({
+      name: groupNameById.get(key) ?? members[0].name,
+      box: computeBoundingBox(members),
+      representativeId: members[0].id,
+    }));
+
     const issues: LintIssue[] = [];
-    for (let i = 0; i < textElements.length; i++) {
-      for (let j = i + 1; j < textElements.length; j++) {
-        const a = textElements[i];
-        const b = textElements[j];
-        if (boxesIntersect(a, b)) {
+    for (let i = 0; i < blocks.length; i++) {
+      for (let j = i + 1; j < blocks.length; j++) {
+        const a = blocks[i];
+        const b = blocks[j];
+        if (boxesIntersect(a.box, b.box)) {
           issues.push({
-            rule: 'overlapping-text',
+            rule: 'overlapping-elements',
             message: `"${a.name}" overlaps "${b.name}".`,
-            elementIds: [a.id, b.id],
+            elementIds: [a.representativeId, b.representativeId],
           });
         }
       }

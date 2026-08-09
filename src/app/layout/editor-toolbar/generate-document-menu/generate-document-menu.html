@@ -1,0 +1,40 @@
+<div class="generate-document-menu">
+  <app-icon-button icon="sparkle" label="Generate newsletter from document" (activated)="toggle()" />
+
+  @if (summary(); as message) {
+    <span class="generate-document-menu__summary">{{ message }}</span>
+  }
+
+  @if (open()) {
+    <div class="generate-document-menu__panel" role="menu">
+      <p class="generate-document-menu__hint">
+        Upload a document and generate a whole multi-page newsletter from it — headings, body
+        copy and infographics chosen and placed automatically.
+      </p>
+
+      <input
+        #fileInput
+        type="file"
+        [accept]="acceptedExtensions"
+        hidden
+        (change)="onFileSelected($event)"
+      />
+      <button type="button" class="generate-document-menu__pick" (click)="pickFile()">
+        {{ file()?.name ?? 'Choose a document…' }}
+      </button>
+
+      @if (error(); as message) {
+        <span class="generate-document-menu__error" role="alert">{{ message }}</span>
+      }
+
+      <button
+        type="button"
+        class="generate-document-menu__confirm"
+        [disabled]="busy() || !file()"
+        (click)="generate()"
+      >
+        {{ busy() ? 'Generating…' : 'Generate newsletter' }}
+      </button>
+    </div>
+  }
+</div>

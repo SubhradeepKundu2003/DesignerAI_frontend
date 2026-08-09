@@ -10,10 +10,10 @@
   display: flex;
   height: 100%;
   align-items: center;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-5);
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .strip {
@@ -24,7 +24,7 @@
   align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .page {
@@ -32,23 +32,35 @@
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
-  width: 76px;
+  width: 72px;
   cursor: pointer;
-  gap: var(--space-1);
+  gap: var(--space-2);
 
-  &__thumb {
-    overflow: hidden;
+  // Fixed-size slot every thumbnail is centered in, so portrait and
+  // landscape pages share one footprint and the label below never gets
+  // pushed out of the row.
+  &__slot {
+    position: relative;
+    display: flex;
     width: 100%;
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 8%));
-    transition: border-color var(--transition-fast);
+    height: 68px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+    transition: background var(--transition-fast);
   }
 
   &__sheet {
     position: relative;
-    width: 100%;
-    height: 100%;
+    flex: none;
+    overflow: hidden;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 8%));
+    transition:
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
   }
 
   &__swatch {
@@ -58,6 +70,22 @@
     &--image {
       object-fit: cover;
     }
+  }
+
+  &__number {
+    position: absolute;
+    top: var(--space-1);
+    left: var(--space-1);
+    min-width: 14px;
+    padding: 1px 4px;
+    border-radius: var(--radius-full);
+    background: rgb(0 0 0 / 45%);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    transition: background var(--transition-fast);
   }
 
   &__footer {
@@ -113,14 +141,18 @@
     display: flex;
   }
 
-  &:hover &__thumb {
-    border-color: var(--color-border-strong);
+  &:hover &__slot {
+    background: var(--color-surface-active);
   }
 
   &--active {
-    .page__thumb {
+    .page__sheet {
       border-color: var(--color-accent);
       box-shadow: 0 0 0 2px var(--color-accent-soft);
+    }
+
+    .page__number {
+      background: var(--color-accent);
     }
 
     .page__name {
@@ -130,7 +162,7 @@
   }
 
   &--drop-target {
-    .page__thumb {
+    .page__sheet {
       border-color: var(--color-accent);
       border-style: dashed;
     }
@@ -138,8 +170,42 @@
 }
 
 .add {
-  @include mx.icon-button(32px);
+  @include mx.button-reset;
+  @include mx.focus-ring;
 
-  flex-shrink: 0;
-  border: 1px dashed var(--color-border-strong);
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+
+  &__slot {
+    display: flex;
+    width: 44px;
+    height: 68px;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--color-border-strong);
+    border-radius: var(--radius-md);
+    transition:
+      border-color var(--transition-fast),
+      background var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  &__label {
+    font-size: var(--text-xs);
+    transition: color var(--transition-fast);
+  }
+
+  &:hover &__slot {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
+  &:hover &__label {
+    color: var(--color-text);
+  }
 }

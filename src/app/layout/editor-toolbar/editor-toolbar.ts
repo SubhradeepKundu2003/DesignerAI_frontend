@@ -18,13 +18,14 @@ import { ThemeStore } from '../../canvas/state/theme.store';
 import { ViewportStore } from '../../canvas/state/viewport.store';
 import { IconButton } from '../../shared/components/icon-button/icon-button';
 import { ExportMenu } from './export-menu/export-menu';
+import { GenerateDocumentMenu } from './generate-document-menu/generate-document-menu';
 import { GenerateMenu } from './generate-menu/generate-menu';
 import { LintMenu } from './lint-menu/lint-menu';
 
 /** Top toolbar: history, object actions, canvas aids and the zoom readout. */
 @Component({
   selector: 'app-editor-toolbar',
-  imports: [IconButton, ExportMenu, GenerateMenu, LintMenu],
+  imports: [IconButton, ExportMenu, GenerateMenu, GenerateDocumentMenu, LintMenu],
   templateUrl: './editor-toolbar.html',
   styleUrl: './editor-toolbar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

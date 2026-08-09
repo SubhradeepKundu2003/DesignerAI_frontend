@@ -188,3 +188,18 @@ export function frame(props: {
 export function translate<T extends readonly CanvasElement[]>(elements: T, origin: { x: number; y: number }): T {
   return elements.map((element) => ({ ...element, x: element.x + origin.x, y: element.y + origin.y })) as unknown as T;
 }
+
+/**
+ * Positionally merges content overrides onto a template's default fixed-size
+ * list (bar-chart's bars, KPI dashboard's tiles, timeline steps, bullet-list
+ * items) — used by the handful of templates whose `build()` accepts a
+ * generation-time `content` override (Track P4). The result always has the
+ * same length as `defaults`: a document with fewer data points than the
+ * template's slot count just leaves the remaining slots at their polished
+ * placeholder copy, and extra data points beyond the slot count are dropped,
+ * rather than resizing the template's own geometry (`WIDTH`/`HEIGHT` are
+ * computed from `defaults.length` at module load time in every such file).
+ */
+export function mergeFixedList<T>(defaults: readonly T[], overrides?: readonly Partial<T>[]): T[] {
+  return defaults.map((base, i) => (overrides?.[i] ? { ...base, ...overrides[i] } : base));
+}

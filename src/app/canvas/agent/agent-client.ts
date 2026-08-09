@@ -2,6 +2,7 @@ import { Observable } from 'rxjs';
 
 import { CanvasElement } from '../models/canvas-element.model';
 import { DesignTheme } from '../models/design-theme.model';
+import { DocumentGenerateResult } from './document-generate.model';
 
 /**
  * What the Generate panel sends: everything a client needs to place a design
@@ -26,6 +27,12 @@ export interface AgentGenerateResult {
   readonly elements: readonly CanvasElement[];
 }
 
+/** What the document-generation panel sends: a whole file plus the project's theme. */
+export interface AgentGenerateFromDocumentRequest {
+  readonly file: File;
+  readonly theme: DesignTheme;
+}
+
 /**
  * The one seam between the editor and whatever generates a design — today
  * {@link MockAgentClient}, later an HTTP+SSE client talking to the FastAPI/
@@ -39,4 +46,13 @@ export interface AgentGenerateResult {
  */
 export abstract class AgentClient {
   abstract generate(request: AgentGenerateRequest): Observable<AgentGenerateResult>;
+  /**
+   * Generates a whole multi-page newsletter's content plan from an uploaded
+   * document. Unlike {@link generate}, the result carries no coordinates or
+   * template ids — `NewsletterAssembler` is the only place it becomes
+   * positioned, templated `CanvasElement`s.
+   */
+  abstract generateFromDocument(
+    request: AgentGenerateFromDocumentRequest,
+  ): Observable<DocumentGenerateResult>;
 }
