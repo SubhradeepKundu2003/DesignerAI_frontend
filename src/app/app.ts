@@ -1,17 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-
-import { PersistenceService } from './canvas/services/persistence.service';
-import { EditorShell } from './layout/editor-shell/editor-shell';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
-  imports: [EditorShell],
+  imports: [RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class App {
-  constructor() {
-    inject(PersistenceService).restoreOnStartup();
-  }
-}
+export class App {}

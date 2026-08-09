@@ -1,33 +1,42 @@
 import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 
 import { LocalStorageService } from '../../core/services/local-storage.service';
+import { ProjectApiService } from '../../core/services/project-api.service';
 import { CommandBus } from '../commands/command-bus.service';
 import { LoadCanvasCommand } from '../commands/load-canvas.command';
 import { CanvasDocument, isCanvasDocument } from '../models/canvas-document.model';
 import { CanvasStore } from '../state/canvas.store';
 
-const STORAGE_KEY = 'designerai:canvas:v1';
+const CACHE_KEY_PREFIX = 'designerai:canvas:';
 const AUTOSAVE_DELAY_MS = 2000;
 const SAVED_FLASH_MS = 1600;
 
 /**
- * Save/load against a single localStorage slot.
+ * Save/load against `designerai-backend` (Track H/I) for whichever project
+ * `openProject` was last called with -- routing (Track I4) is what decides
+ * *which* project that is, this service only knows how to persist it.
  *
- * Autosave and the explicit Save button share the same write path; the only
- * difference is that Save also flashes {@link justSaved} so the user gets the
- * certainty autosave deliberately doesn't ask for (autosave writes silently).
+ * The single localStorage slot from before this backend existed is demoted
+ * to a per-project offline cache: editing keeps working through a network
+ * blip, and a same-tab reload has a synchronous fast path, but the backend
+ * is the source of truth. Autosave and the explicit Save button share the
+ * same write path; the only difference is that Save also flashes
+ * {@link justSaved} so the user gets the certainty autosave deliberately
+ * doesn't ask for (autosave writes silently).
  */
 @Injectable({ providedIn: 'root' })
 export class PersistenceService {
   private readonly storage = inject(LocalStorageService);
   private readonly canvas = inject(CanvasStore);
   private readonly commands = inject(CommandBus);
+  private readonly api = inject(ProjectApiService);
 
   /** True for a moment after an explicit save, for the toolbar's "Saved" cue. */
   readonly justSaved = signal(false);
   /** Whether a save exists to load — gates the toolbar's Load button. */
-  readonly hasSave = signal(this.storage.has(STORAGE_KEY));
+  readonly hasSave = signal(false);
 
+  private projectId: string | null = null;
   private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   private savedFlashTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -43,15 +52,35 @@ export class PersistenceService {
   }
 
   /**
-   * Restores the last save at app start. This is the editor's initial state
-   * rather than a user edit, so it replaces the document directly instead of
-   * going through a command — there is no history yet for it to belong to.
+   * Opens `projectId` as the one this service now persists to, and loads its
+   * document -- from the backend if reachable, from this project's local
+   * cache otherwise. This is the editor's initial state rather than a user
+   * edit, so it replaces the document directly instead of going through a
+   * command — there is no history yet for it to belong to.
    */
-  restoreOnStartup(): void {
-    const document = this.readSaved();
-    if (document) {
-      this.canvas.replaceDocument(document);
-    }
+  openProject(projectId: string): void {
+    this.projectId = projectId;
+    this.hasSave.set(this.storage.has(this.cacheKey(projectId)));
+
+    this.api.getDocument(projectId).subscribe({
+      next: (document) => {
+        if (projectId !== this.projectId || !isCanvasDocument(document)) {
+          return;
+        }
+        this.canvas.replaceDocument(document);
+        this.writeCache(projectId, document);
+        this.hasSave.set(true);
+      },
+      error: () => {
+        if (projectId !== this.projectId) {
+          return;
+        }
+        const cached = this.readCache(projectId);
+        if (cached) {
+          this.canvas.replaceDocument(cached);
+        }
+      },
+    });
   }
 
   /** Manual save: writes immediately and confirms via {@link justSaved}. */
@@ -64,10 +93,26 @@ export class PersistenceService {
 
   /** Replaces the document with the last save, as one undo step. */
   load(): void {
-    const document = this.readSaved();
-    if (document) {
-      this.commands.dispatch(new LoadCanvasCommand(this.canvas, document));
+    const projectId = this.projectId;
+    if (!projectId) {
+      return;
     }
+
+    this.api.getDocument(projectId).subscribe({
+      next: (document) => {
+        if (!isCanvasDocument(document)) {
+          return;
+        }
+        this.commands.dispatch(new LoadCanvasCommand(this.canvas, document));
+        this.writeCache(projectId, document);
+      },
+      error: () => {
+        const cached = this.readCache(projectId);
+        if (cached) {
+          this.commands.dispatch(new LoadCanvasCommand(this.canvas, cached));
+        }
+      },
+    });
   }
 
   private scheduleAutosave(document: CanvasDocument): void {
@@ -76,13 +121,32 @@ export class PersistenceService {
   }
 
   private writeDocument(document: CanvasDocument): void {
-    if (this.storage.set(STORAGE_KEY, document)) {
+    const projectId = this.projectId;
+    if (!projectId) {
+      return;
+    }
+
+    this.writeCache(projectId, document);
+    this.api.saveDocument(projectId, document).subscribe({
+      next: () => this.hasSave.set(true),
+      // A network blip leaves the cache write above as this save's only
+      // effect; the next autosave tick (or an explicit Save) retries.
+      error: () => {},
+    });
+  }
+
+  private writeCache(projectId: string, document: CanvasDocument): void {
+    if (this.storage.set(this.cacheKey(projectId), document)) {
       this.hasSave.set(true);
     }
   }
 
-  private readSaved(): CanvasDocument | null {
-    const value = this.storage.get<CanvasDocument>(STORAGE_KEY);
+  private readCache(projectId: string): CanvasDocument | null {
+    const value = this.storage.get<CanvasDocument>(this.cacheKey(projectId));
     return isCanvasDocument(value) ? value : null;
+  }
+
+  private cacheKey(projectId: string): string {
+    return `${CACHE_KEY_PREFIX}${projectId}`;
   }
 }

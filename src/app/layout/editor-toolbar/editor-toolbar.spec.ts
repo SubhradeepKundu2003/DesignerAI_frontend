@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { shapeElement } from '../../../testing/canvas-fixtures';
@@ -25,6 +27,7 @@ describe('EditorToolbar', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [EditorToolbar],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(EditorToolbar);

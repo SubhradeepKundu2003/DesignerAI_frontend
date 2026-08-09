@@ -1,0 +1,33 @@
+<div class="page">
+  <header class="page__header">
+    <h1 class="page__title">My projects</h1>
+    <button type="button" class="page__create" [disabled]="creating()" (click)="create()">
+      {{ creating() ? 'Creating…' : 'New project' }}
+    </button>
+  </header>
+
+  @if (loading()) {
+    <p class="page__status">Loading your projects…</p>
+  } @else if (loadError()) {
+    <p class="page__status page__status--error">
+      Couldn't reach the server. Check that the backend is running and reload.
+    </p>
+  } @else if (projects().length === 0) {
+    <p class="page__status">No projects yet — create one to get started.</p>
+  } @else {
+    <ul class="grid">
+      @for (project of projects(); track project.id) {
+        <li class="card">
+          <a class="card__link" [routerLink]="['/projects', project.id]">
+            <span class="card__title">{{ project.title }}</span>
+            <span class="card__meta">Updated {{ project.updatedAt | date: 'medium' }}</span>
+          </a>
+          <div class="card__actions">
+            <button type="button" (click)="rename(project)">Rename</button>
+            <button type="button" class="card__delete" (click)="remove(project)">Delete</button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

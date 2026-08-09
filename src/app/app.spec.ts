@@ -1,11 +1,19 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 
+import { routes } from './app.routes';
 import { App } from './app';
+import { EditorShell } from './layout/editor-shell/editor-shell';
+import { ProjectsList } from './layout/projects-list/projects-list';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes)],
     }).compileComponents();
   });
 
@@ -14,11 +22,15 @@ describe('App', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should render the editor shell', async () => {
-    const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
+  it('should render the projects list at the root route', async () => {
+    const harness = await RouterTestingHarness.create();
+    const instance = await harness.navigateByUrl('/', ProjectsList);
+    expect(instance).toBeTruthy();
+  });
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('app-editor-shell')).toBeTruthy();
+  it('should render the editor shell at /projects/:id', async () => {
+    const harness = await RouterTestingHarness.create();
+    const instance = await harness.navigateByUrl('/projects/test-id', EditorShell);
+    expect(instance).toBeTruthy();
   });
 });
