@@ -33,6 +33,9 @@ export class HttpAgentClient extends AgentClient {
     const formData = new FormData();
     formData.append('file', request.file);
     formData.append('theme', JSON.stringify(request.theme));
+    if (request.projectId) {
+      formData.append('project_id', request.projectId);
+    }
     return this.http.post<DocumentGenerateResult>(`${this.baseUrl}/generate/document`, formData);
   }
 }

@@ -1,7 +1,7 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENT_CYCLE, accentRef } from './palette';
-import { rect, text, translate } from './template-kit';
+import { mergeFixedList, rect, text, translate } from './template-kit';
 
 const WIDTH = 460;
 const TIER_HEIGHT = 62;
@@ -23,11 +23,17 @@ const HEIGHT = TIERS.length * TIER_HEIGHT + (TIERS.length - 1) * TIER_GAP;
  * tier is a centred rect narrowing toward the top — the same trick real
  * slide decks use when a design tool has no native polygon primitive.
  */
-function build(origin: { x: number; y: number }): CanvasElement[] {
-  const elements: CanvasElement[] = [];
-  const widthStep = (WIDTH - TOP_TIER_WIDTH) / (TIERS.length - 1);
+export interface PyramidContent {
+  /** Positionally merged onto the default 4 tiers — see `mergeFixedList`. */
+  readonly tiers?: readonly Partial<{ title: string; body: string }>[];
+}
 
-  TIERS.forEach((tier, i) => {
+function build(origin: { x: number; y: number }, content?: PyramidContent): CanvasElement[] {
+  const tiers = mergeFixedList<(typeof TIERS)[number]>(TIERS, content?.tiers);
+  const elements: CanvasElement[] = [];
+  const widthStep = (WIDTH - TOP_TIER_WIDTH) / (tiers.length - 1);
+
+  tiers.forEach((tier, i) => {
     const accentIndex = i % ACCENT_CYCLE.length;
     const accent = ACCENT_CYCLE[accentIndex];
     const tierWidth = WIDTH - i * widthStep;

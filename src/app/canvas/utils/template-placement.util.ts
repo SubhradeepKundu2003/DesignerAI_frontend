@@ -1,4 +1,5 @@
 import { CanvasElement, GroupElement } from '../models/canvas-element.model';
+import { DesignTheme } from '../models/design-theme.model';
 import { InfographicTemplate } from '../models/infographic-template.model';
 import { computeBoundingBox } from './geometry.util';
 import { generateId } from './id.util';
@@ -24,8 +25,9 @@ export function buildTemplatePlacement(
   template: InfographicTemplate,
   origin: { x: number; y: number },
   content?: unknown,
+  theme?: DesignTheme,
 ): TemplatePlacement {
-  const built = template.build(origin, content);
+  const built = template.build(origin, content, theme);
   if (built.length < 2) {
     return { elements: built };
   }

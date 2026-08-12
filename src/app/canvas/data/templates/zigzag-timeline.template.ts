@@ -1,7 +1,7 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
-import { circle, connector, text, translate } from './template-kit';
+import { circle, connector, mergeFixedList, text, translate } from './template-kit';
 
 const WIDTH = 698;
 const HEIGHT = 280;
@@ -19,14 +19,20 @@ const STEPS: { title: string; body: string }[] = [
   { title: 'Launch', body: 'Release it and hand off what comes next.' },
 ];
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface ZigzagTimelineContent {
+  /** Positionally merged onto the default 4 steps — see `mergeFixedList`. */
+  readonly steps?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: ZigzagTimelineContent): CanvasElement[] {
+  const steps = mergeFixedList<(typeof STEPS)[number]>(STEPS, content?.steps);
   const elements: CanvasElement[] = [];
 
   elements.push(
     connector({ x: NODE_X[0], y: CENTER_Y }, { x: NODE_X[3], y: CENTER_Y }, { name: 'Spine', stroke: BORDER, strokeRef: 'border', strokeWidth: 3 }),
   );
 
-  STEPS.forEach((step, i) => {
+  steps.forEach((step, i) => {
     const accent = ACCENT_CYCLE[i];
     const cx = NODE_X[i];
     const above = i % 2 === 0;

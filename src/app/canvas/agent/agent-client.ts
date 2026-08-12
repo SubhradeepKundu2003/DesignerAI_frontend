@@ -31,6 +31,11 @@ export interface AgentGenerateResult {
 export interface AgentGenerateFromDocumentRequest {
   readonly file: File;
   readonly theme: DesignTheme;
+  /** So the backend can store any pictures it extracts from the document as
+   * this project's assets (`ExtractedImage`) -- omitted when there's no
+   * project yet to attach them to, in which case the backend just skips
+   * picture extraction rather than erroring. */
+  readonly projectId?: string;
 }
 
 /**

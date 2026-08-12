@@ -23,6 +23,15 @@
           (input)="setPrompt($any($event.target).value)"
         ></textarea>
       </label>
+      <label class="generate-menu__toggle">
+        <input
+          type="checkbox"
+          [checked]="editorSettings.autoVaryTheme()"
+          (change)="editorSettings.toggleAutoVaryTheme()"
+        />
+        Vary colours each time
+      </label>
+
       @if (error(); as message) {
         <span class="generate-menu__error" role="alert">{{ message }}</span>
       }

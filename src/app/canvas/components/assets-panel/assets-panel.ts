@@ -81,7 +81,7 @@ export class AssetsPanel {
       x: Math.round(Math.max(page.width - template.size.width, 0) / 2),
       y: Math.round(Math.max((page.height - template.size.height) / 2, PAGE_MARGIN)),
     };
-    const { elements, group } = buildTemplatePlacement(template, origin);
+    const { elements, group } = buildTemplatePlacement(template, origin, undefined, this.canvas.theme());
 
     if (!group) {
       this.commands.dispatch(new AddElementsCommand(this.canvas, elements));

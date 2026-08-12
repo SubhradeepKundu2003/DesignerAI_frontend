@@ -1,7 +1,7 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENT_CYCLE, INK, MUTED, accentRef } from './palette';
-import { circle, connector, icon, rect, text, translate } from './template-kit';
+import { circle, connector, icon, mergeFixedList, rect, text, translate } from './template-kit';
 import { IconName } from './icon-svg';
 
 const WIDTH = 698;
@@ -26,7 +26,13 @@ function edgePoint(cx: number, cy: number, r: number, toward: { x: number; y: nu
   return { x: cx + (dx / dist) * r, y: cy + (dy / dist) * r };
 }
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface RadialProcessContent {
+  /** Positionally merged onto the default 4 steps — see `mergeFixedList`. */
+  readonly steps?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: RadialProcessContent): CanvasElement[] {
+  const steps = mergeFixedList<(typeof STEPS)[number]>(STEPS, content?.steps);
   const elements: CanvasElement[] = [];
 
   elements.push(
@@ -46,7 +52,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
     }),
   );
 
-  STEPS.forEach((step, i) => {
+  steps.forEach((step, i) => {
     const accent = ACCENT_CYCLE[i];
     const barY = ROW_TOPS[i];
     const barCenterY = barY + BAR.height / 2;

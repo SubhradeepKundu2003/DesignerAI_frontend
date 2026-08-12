@@ -12,6 +12,10 @@ export interface EditorSettings {
   guidesVisible: boolean;
   /** Show the dashed safe-area / margin outline. */
   marginsVisible: boolean;
+  /** Rotate to a random theme preset right before each AI generation, so
+   * consecutive newsletters don't all come out in the same colours. Off
+   * switches back to "whatever theme the document currently has." */
+  autoVaryTheme: boolean;
 }
 
 /** The viewport transform applied to the Konva stage. */

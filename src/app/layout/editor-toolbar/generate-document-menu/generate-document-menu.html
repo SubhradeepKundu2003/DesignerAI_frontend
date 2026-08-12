@@ -23,6 +23,15 @@
         {{ file()?.name ?? 'Choose a document…' }}
       </button>
 
+      <label class="generate-document-menu__toggle">
+        <input
+          type="checkbox"
+          [checked]="editorSettings.autoVaryTheme()"
+          (change)="editorSettings.toggleAutoVaryTheme()"
+        />
+        Vary colours each time
+      </label>
+
       @if (error(); as message) {
         <span class="generate-document-menu__error" role="alert">{{ message }}</span>
       }

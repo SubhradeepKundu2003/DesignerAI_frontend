@@ -1,4 +1,5 @@
 import {
+  ArcOrientation,
   CanvasElement,
   DividerElement,
   FrameElement,
@@ -86,6 +87,36 @@ export function circle(
     ...base({ ...rest, width: diameter, height: diameter }),
     type: 'shape',
     shape: 'circle',
+    fill,
+    fillRef,
+    stroke: stroke ?? 'transparent',
+    strokeRef,
+    strokeWidth: strokeWidth ?? 0,
+    cornerRadius: 0,
+  };
+}
+
+/**
+ * A decorative half-disc — flat (diameter) edge on `orientation`'s box edge,
+ * dome bulging toward the opposite edge. Same theming guarantee as `circle()`:
+ * `fillRef`/`strokeRef` let `ApplyThemeCommand` recolour it.
+ */
+export function halfCircle(
+  props: Base & {
+    orientation?: ArcOrientation;
+    fill: string;
+    fillRef?: ThemeColorRef;
+    stroke?: string;
+    strokeRef?: ThemeColorRef;
+    strokeWidth?: number;
+  },
+): ShapeElement {
+  const { orientation, fill, fillRef, stroke, strokeRef, strokeWidth, ...rest } = props;
+  return {
+    ...base(rest),
+    type: 'shape',
+    shape: 'semicircle',
+    arcOrientation: orientation ?? 'up',
     fill,
     fillRef,
     stroke: stroke ?? 'transparent',

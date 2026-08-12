@@ -59,6 +59,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   snapEnabled: true,
   guidesVisible: true,
   marginsVisible: true,
+  autoVaryTheme: true,
 };
 
 /** Fonts offered in the text properties panel (all web-safe for now). */

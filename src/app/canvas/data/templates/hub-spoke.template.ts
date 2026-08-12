@@ -2,7 +2,7 @@ import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName } from './icon-svg';
 import { ACCENT_CYCLE, INK, MUTED, accentRef } from './palette';
-import { circle, connector, icon, text, translate } from './template-kit';
+import { circle, connector, icon, mergeFixedList, text, translate } from './template-kit';
 
 const WIDTH = 698;
 const ROW_H = 130;
@@ -15,9 +15,9 @@ const LEFT_CX = LABEL_WIDTH + LABEL_GAP + NODE_D / 2;
 const RIGHT_CX = WIDTH - LEFT_CX;
 const HUB_CX = WIDTH / 2;
 
-const HEIGHT = ROW_H * 3;
+const HEIGHT = ROW_H * 2;
 const HUB_CY = HEIGHT / 2;
-const ROW_Y = [0, 1, 2].map((i) => i * ROW_H + ROW_H / 2);
+const ROW_Y = [0, 1].map((i) => i * ROW_H + ROW_H / 2);
 
 interface Branch {
   title: string;
@@ -25,17 +25,20 @@ interface Branch {
   iconName: IconName;
 }
 
+// Two branches per side, not the old three -- lines up with every other
+// `bullet_list` pool member's exact 4-slot content contract (see
+// `card-grid.template.ts`'s matching comment).
 const LEFT: Branch[] = [
   { title: 'Goals', body: 'What success looks like.', iconName: 'target' },
   { title: 'Team', body: 'Who owns each piece.', iconName: 'users' },
-  { title: 'Timeline', body: 'Key dates to hit.', iconName: 'calendar' },
 ];
 
 const RIGHT: Branch[] = [
   { title: 'Budget', body: 'What it costs to get there.', iconName: 'trendUp' },
   { title: 'Tools', body: 'What you need to execute.', iconName: 'compass' },
-  { title: 'Risks', body: 'What could knock it off track.', iconName: 'flag' },
 ];
+
+const BRANCH_DEFAULTS = [...LEFT, ...RIGHT];
 
 function edgePoint(cx: number, cy: number, r: number, toward: { x: number; y: number }): { x: number; y: number } {
   const dx = toward.x - cx;
@@ -44,7 +47,16 @@ function edgePoint(cx: number, cy: number, r: number, toward: { x: number; y: nu
   return { x: cx + (dx / dist) * r, y: cy + (dy / dist) * r };
 }
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface HubSpokeContent {
+  /** Positionally merged onto the default 4 branches (2 left, 2 right, in
+   * that order) — see `mergeFixedList`. */
+  readonly branches?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: HubSpokeContent): CanvasElement[] {
+  const branches = mergeFixedList<Branch>(BRANCH_DEFAULTS, content?.branches);
+  const left = branches.slice(0, LEFT.length);
+  const right = branches.slice(LEFT.length);
   const elements: CanvasElement[] = [];
 
   elements.push(
@@ -65,8 +77,8 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
   );
 
   const sides: { branches: Branch[]; cx: number; align: 'left' | 'right' }[] = [
-    { branches: LEFT, cx: LEFT_CX, align: 'right' },
-    { branches: RIGHT, cx: RIGHT_CX, align: 'left' },
+    { branches: left, cx: LEFT_CX, align: 'right' },
+    { branches: right, cx: RIGHT_CX, align: 'left' },
   ];
 
   sides.forEach((side) => {

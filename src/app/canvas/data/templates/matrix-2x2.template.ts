@@ -1,7 +1,7 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENTS, MUTED, accentRef } from './palette';
-import { rect, text, translate } from './template-kit';
+import { mergeFixedList, rect, text, translate } from './template-kit';
 
 const ROW_LABEL_W = 70;
 const COL_LABEL_H = 26;
@@ -32,7 +32,13 @@ const QUADRANTS: Quadrant[] = [
 const COL_LABELS = ['Helpful', 'Harmful'];
 const ROW_LABELS = ['Internal', 'External'];
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface Matrix2x2Content {
+  /** Positionally merged onto the default 4 quadrants — see `mergeFixedList`. */
+  readonly quadrants?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: Matrix2x2Content): CanvasElement[] {
+  const quadrants = mergeFixedList<(typeof QUADRANTS)[number]>(QUADRANTS, content?.quadrants);
   const elements: CanvasElement[] = [];
 
   COL_LABELS.forEach((label, col) => {
@@ -73,7 +79,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
     );
   });
 
-  QUADRANTS.forEach((quadrant, i) => {
+  quadrants.forEach((quadrant, i) => {
     const col = i % 2;
     const row = Math.floor(i / 2);
     const x = GRID_X + col * (CELL_W + GAP);

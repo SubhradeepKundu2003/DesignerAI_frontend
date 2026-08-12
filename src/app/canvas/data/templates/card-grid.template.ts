@@ -2,9 +2,9 @@ import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName } from './icon-svg';
 import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
-import { frame, icon, text, translate } from './template-kit';
+import { frame, icon, mergeFixedList, text, translate } from './template-kit';
 
-const COLS = 3;
+const COLS = 2;
 const ROWS = 2;
 const CARD = { width: 216, height: 150 };
 const GAP = 25;
@@ -16,18 +16,21 @@ const CARD_PADDING = 16;
 const CARD_GAP = 10;
 const ICON_SIZE = 28;
 
+// Four cards, not the old six -- lines up with every other `bullet_list`
+// pool member's exact 4-slot content contract (`mergeFixedList`/
+// `SHAPE_DATA_POINT_COUNT.bullet_list` in `newsletter-assembler.service.ts`),
+// so real extracted content covers every card instead of the last two
+// silently staying this file's hardcoded placeholder copy.
 const CARDS: { title: string; body: string; iconName: IconName }[] = [
   { title: 'Point one', body: 'A short line backing up this highlight.', iconName: 'star' },
   { title: 'Point two', body: 'A short line backing up this highlight.', iconName: 'check' },
   { title: 'Point three', body: 'A short line backing up this highlight.', iconName: 'users' },
   { title: 'Point four', body: 'A short line backing up this highlight.', iconName: 'trendUp' },
-  { title: 'Point five', body: 'A short line backing up this highlight.', iconName: 'chat' },
-  { title: 'Point six', body: 'A short line backing up this highlight.', iconName: 'calendar' },
 ];
 
 /**
  * Rebuilt on Frames (Track D3), a grid two levels deep: an outer `column`
- * frame of `row` frames, each holding three `column` "card" frames (icon,
+ * frame of `row` frames, each holding two `column` "card" frames (icon,
  * title, body). `CARD_PADDING`/`CARD_GAP`/`CONTENT_WIDTH` are chosen so each
  * card frame hugs its content to exactly `CARD.width`x`CARD.height` — no
  * pixel-position bookkeeping left in this file at all, unlike the old version.
@@ -105,8 +108,14 @@ function buildRow(cards: readonly (typeof CARDS)[number][], rowIndex: number): C
   return [rowFrame, ...cardElements];
 }
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
-  const rows = [buildRow(CARDS.slice(0, COLS), 0), buildRow(CARDS.slice(COLS), 1)];
+export interface CardGridContent {
+  /** Positionally merged onto the default 4 cards — see `mergeFixedList`. */
+  readonly cards?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: CardGridContent): CanvasElement[] {
+  const cards = mergeFixedList<(typeof CARDS)[number]>(CARDS, content?.cards);
+  const rows = [buildRow(cards.slice(0, COLS), 0), buildRow(cards.slice(COLS), 1)];
   const outer = frame({
     x: 0,
     y: 0,
@@ -136,7 +145,7 @@ const THUMBNAIL =
 
 export const CARD_GRID_TEMPLATE: InfographicTemplate = {
   id: 'template-card-grid',
-  label: 'Six-card grid',
+  label: 'Four-card grid',
   tags: ['grid', 'cards', 'list'],
   size: { width: WIDTH, height: HEIGHT },
   thumbnail: `data:image/svg+xml;utf8,${encodeURIComponent(THUMBNAIL)}`,

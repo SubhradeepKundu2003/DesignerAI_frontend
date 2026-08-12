@@ -1,7 +1,7 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
-import { circle, connector, text, translate } from './template-kit';
+import { circle, connector, mergeFixedList, text, translate } from './template-kit';
 
 const NODE_D = 44;
 const COL_WIDTH = 156;
@@ -23,10 +23,16 @@ const STEPS: { title: string; body: string }[] = [
  * `arc-process.template.ts` (bulging ribbon connectors, icon nodes) and the
  * zigzag/vertical timelines: every node sits on one unbroken straight line.
  */
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface StepTrackerContent {
+  /** Positionally merged onto the default 4 steps — see `mergeFixedList`. */
+  readonly steps?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: StepTrackerContent): CanvasElement[] {
+  const steps = mergeFixedList<(typeof STEPS)[number]>(STEPS, content?.steps);
   const elements: CanvasElement[] = [];
   const centerY = NODE_D / 2;
-  const centers = STEPS.map((_, i) => i * COL_WIDTH + COL_WIDTH / 2);
+  const centers = steps.map((_, i) => i * COL_WIDTH + COL_WIDTH / 2);
 
   elements.push(
     connector(
@@ -36,7 +42,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
     ),
   );
 
-  STEPS.forEach((step, i) => {
+  steps.forEach((step, i) => {
     const accentIndex = i % ACCENT_CYCLE.length;
     const accent = ACCENT_CYCLE[accentIndex];
     const cx = centers[i];

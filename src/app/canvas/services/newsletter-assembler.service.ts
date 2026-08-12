@@ -1,22 +1,44 @@
 import { Injectable, inject } from '@angular/core';
 
 import { IconName } from '../../shared/icons/icon-registry';
-import { DataPoint, DocumentGenerateResult, LlmBlock } from '../agent/document-generate.model';
+import { DataPoint, DocumentGenerateResult, InfographicShape, LlmBlock } from '../agent/document-generate.model';
+import { ArcProcessContent } from '../data/templates/arc-process.template';
 import { BarChartContent } from '../data/templates/bar-chart.template';
+import { BarChartCapsContent } from '../data/templates/bar-chart-caps.template';
+import { CardGridContent } from '../data/templates/card-grid.template';
+import { ComparisonColumnsContent } from '../data/templates/comparison-columns.template';
+import { FunnelContent } from '../data/templates/funnel.template';
+import { HubSpokeContent } from '../data/templates/hub-spoke.template';
 import { IconBulletListContent } from '../data/templates/icon-bullet-list.template';
 import { KpiDashboardContent } from '../data/templates/kpi-dashboard.template';
+import { KpiHalfmoonContent } from '../data/templates/kpi-halfmoon.template';
+import { KpiRingGridContent } from '../data/templates/kpi-ring-grid.template';
+import { Matrix2x2Content } from '../data/templates/matrix-2x2.template';
+import { PercentageBarRankingContent } from '../data/templates/percentage-bar-ranking.template';
+import { PyramidContent } from '../data/templates/pyramid.template';
+import { QuadrantWheelContent } from '../data/templates/quadrant-wheel.template';
 import { QuoteCalloutContent } from '../data/templates/quote-callout.template';
+import { QuoteSpotlightContent } from '../data/templates/quote-spotlight.template';
+import { RadialProcessContent } from '../data/templates/radial-process.template';
+import { StatBadgeContent } from '../data/templates/stat-badge.template';
 import { StatCalloutContent } from '../data/templates/stat-callout.template';
+import { StatRowContent } from '../data/templates/stat-row.template';
+import { StatRowArcContent } from '../data/templates/stat-row-arc.template';
+import { StatSpotlightContent } from '../data/templates/stat-spotlight.template';
+import { StepTrackerContent } from '../data/templates/step-tracker.template';
+import { TimelineWaypointsContent } from '../data/templates/timeline-waypoints.template';
 import { VerticalTimelineContent } from '../data/templates/vertical-timeline.template';
+import { ZigzagTimelineContent } from '../data/templates/zigzag-timeline.template';
 import { CanvasElement, GroupElement, IconElement, TextElement, isTextElement } from '../models/canvas-element.model';
 import { Page } from '../models/canvas-document.model';
 import { DesignTheme, ThemeColorRef } from '../models/design-theme.model';
 import { PAGE_BACKGROUND, PAGE_MARGIN, PAGE_SIZE } from '../models/editor-config';
+import { halfCircle } from '../data/templates/template-kit';
 import { generateId } from '../utils/id.util';
 import { measureTextHeight } from '../utils/text-measure.util';
 import { buildTemplatePlacement } from '../utils/template-placement.util';
 import { DesignLintService } from './design-lint.service';
-import { InfographicMatcherService } from './infographic-matcher.service';
+import { InfographicMatcherService, SHAPE_TEMPLATE_IDS } from './infographic-matcher.service';
 
 /** Mirrors `PAGE_MARGIN`/`GAP` and the heading/body/highlight font sizes the
  * backend's `layout.py` uses for the single-page prompt flow — kept visually
@@ -31,21 +53,47 @@ const MIN_FONT_SIZE = 10;
 /** Templates whose `build()` reads a `content` override (Track P4) — every
  * other template still only ever renders its own placeholder copy, so an
  * `infographic` block matched to one of them falls back to a plain text
- * block instead, rather than placing polished-looking but wrong content. */
-const PARAMETERIZED_TEMPLATE_IDS = new Set([
-  'template-stat-callout',
-  'template-bar-chart',
-  'template-kpi-dashboard',
-  'template-quote-callout',
-  'template-vertical-timeline',
-  'template-icon-bullet-list',
-]);
+ * block instead, rather than placing polished-looking but wrong content.
+ * Derived from `SHAPE_TEMPLATE_IDS` so this list and the shape→template map
+ * can't drift apart. */
+const PARAMETERIZED_TEMPLATE_IDS = new Set(Object.values(SHAPE_TEMPLATE_IDS).flat());
+
+/** Mirrors `app/agent/guardrails.py`'s `_SHAPE_DATA_POINT_COUNT` -- the exact
+ * number of `dataPoints` each shape's templates render via `mergeFixedList`.
+ * `quote` is deliberately absent: it's driven by `block.quote`, not a fixed
+ * list, so it has no fabrication risk to guard against here. */
+const SHAPE_DATA_POINT_COUNT: Partial<Record<InfographicShape, number>> = {
+  stat: 1,
+  stat_row: 3,
+  kpi: 4,
+  bar_chart: 4,
+  bullet_list: 4,
+  timeline: 5,
+};
+
+/** Every `mergeFixedList`-based template's exact `dataPoints` requirement,
+ * keyed by template id rather than shape -- needed because a block can also
+ * reach a parameterized template via the tag-overlap fallback path (see
+ * `buildInfographicBlock` below), which knows nothing about shapes or exact
+ * counts. Without this, a block a few points short of a shape's count could
+ * still land on that shape's template through `tags` alone and render
+ * partly fabricated content, the exact bug this file's class doc warns
+ * about -- `mergeFixedList` pads any slot it doesn't get an override for
+ * with the template's own hardcoded default (e.g. `kpi-dashboard.template.ts`'s
+ * made-up "4.6/5 Client satisfaction" tile), observed happening in practice. */
+const TEMPLATE_MIN_DATA_POINTS = new Map<string, number>(
+  (Object.entries(SHAPE_TEMPLATE_IDS) as [InfographicShape, readonly string[]][]).flatMap(([shape, ids]) => {
+    const count = SHAPE_DATA_POINT_COUNT[shape];
+    return count === undefined ? [] : ids.map((id): [string, number] => [id, count]);
+  }),
+);
 
 export interface AssembledPage {
   readonly page: Page;
   readonly elements: readonly CanvasElement[];
   readonly groups: readonly GroupElement[];
-  /** Lint issues that survived the repair loop — never blocking, shown as a per-page warning badge. */
+  /** Backend content/design guardrail findings (`SectionPlan.warnings`) followed by any
+   * geometric lint issues that survived the repair loop — never blocking, surfaced to the user. */
   readonly warnings: readonly string[];
 }
 
@@ -62,6 +110,13 @@ interface BlockContext {
   readonly theme: DesignTheme;
   readonly accentIndex: number;
   readonly usedTemplateIds: Set<string>;
+}
+
+/** One page-group still waiting to be assembled, queued so an overflowing
+ * block can be re-queued as a fresh job (see `assemble()`). */
+interface PageJob {
+  readonly blocks: LlmBlock[];
+  readonly warnings: readonly string[];
 }
 
 /**
@@ -88,15 +143,20 @@ export class NewsletterAssembler {
 
   assemble(result: DocumentGenerateResult, theme: DesignTheme): AssembledPage[] {
     const usedTemplateIds = new Set<string>();
-    const queue: LlmBlock[][] = result.pages.map((sectionPlan) => [...sectionPlan.blocks]);
+    const queue: PageJob[] = result.pages.map((sectionPlan) => ({
+      blocks: [...sectionPlan.blocks],
+      warnings: sectionPlan.warnings,
+    }));
     const assembled: AssembledPage[] = [];
 
     while (queue.length > 0) {
-      const blocks = queue.shift()!;
-      const { assembledPage, overflow } = this.assembleOnePage(blocks, theme, usedTemplateIds);
+      const job = queue.shift()!;
+      const { assembledPage, overflow } = this.assembleOnePage(job.blocks, theme, usedTemplateIds, job.warnings);
       assembled.push(assembledPage);
       if (overflow.length > 0) {
-        queue.unshift(overflow);
+        // Only the first page produced from a plan carries its backend warnings —
+        // an overflow continuation is still the same section, already reported once.
+        queue.unshift({ blocks: overflow, warnings: [] });
       }
     }
     return assembled;
@@ -106,6 +166,7 @@ export class NewsletterAssembler {
     blocks: readonly LlmBlock[],
     theme: DesignTheme,
     usedTemplateIds: Set<string>,
+    sourceWarnings: readonly string[],
   ): { assembledPage: AssembledPage; overflow: LlmBlock[] } {
     const page: Page = {
       id: generateId('page'),
@@ -118,10 +179,16 @@ export class NewsletterAssembler {
     const contentWidth = Math.max(page.width - PAGE_MARGIN * 2, 1);
     const maxY = page.height - PAGE_MARGIN;
 
-    const elements: CanvasElement[] = [];
+    const elements: CanvasElement[] = buildPageDecoration(theme, page.width, page.height);
     const groups: GroupElement[] = [];
     let cursorY = PAGE_MARGIN;
     let accentIndex = 0;
+    // Tracks real content placed, separately from `elements.length` — that
+    // array is pre-seeded with background decoration, so it's always > 0
+    // even before the first block lands. Without this, a first block too
+    // tall to fit would overflow to a fresh page immediately, leaving this
+    // one with decoration and no content at all.
+    let placedBlocks = 0;
 
     for (let i = 0; i < blocks.length; i++) {
       const built = this.buildBlock(blocks[i], {
@@ -136,21 +203,22 @@ export class NewsletterAssembler {
       }
 
       const bottom = cursorY + built.height;
-      if (elements.length > 0 && bottom > maxY) {
-        return this.finishPage(page, elements, groups, blocks.slice(i));
+      if (placedBlocks > 0 && bottom > maxY) {
+        return this.finishPage(page, elements, groups, blocks.slice(i), sourceWarnings);
       }
 
       elements.push(...built.elements);
       if (built.group) {
         groups.push(built.group);
       }
+      placedBlocks += 1;
       cursorY = bottom + GAP;
       if (built.usesAccent) {
         accentIndex += 1;
       }
     }
 
-    return this.finishPage(page, elements, groups, []);
+    return this.finishPage(page, elements, groups, [], sourceWarnings);
   }
 
   private finishPage(
@@ -158,9 +226,11 @@ export class NewsletterAssembler {
     elements: CanvasElement[],
     groups: GroupElement[],
     overflow: LlmBlock[],
+    sourceWarnings: readonly string[],
   ): { assembledPage: AssembledPage; overflow: LlmBlock[] } {
     const finished: Page = { ...page, elements, groups };
-    const warnings = this.verifyAndRepair(finished);
+    const lintWarnings = this.verifyAndRepair(finished);
+    const warnings = [...sourceWarnings, ...lintWarnings];
     return { assembledPage: { page: finished, elements: finished.elements, groups: finished.groups, warnings }, overflow };
   }
 
@@ -290,9 +360,28 @@ export class NewsletterAssembler {
   }
 
   private buildInfographicBlock(block: LlmBlock, ctx: BlockContext): BuiltBlock | null {
-    const template = this.matcher.match(block.tags, ctx.usedTemplateIds, PARAMETERIZED_TEMPLATE_IDS);
+    // A block with no real content (no shape the backend's guardrail pass
+    // trusted, no dataPoints, no quote) must never reach a parameterized
+    // template: `tags` alone can still tie-break towards one (see
+    // `InfographicMatcherService`'s `preferredTemplateIds`), and mapping no
+    // content onto it renders that template's own hardcoded placeholder copy
+    // as if it were real -- exactly the "polished-looking but wrong content"
+    // this method exists to avoid (see the class doc comment).
+    const hasRealContent = Boolean(block.shape) || (block.dataPoints?.length ?? 0) > 0 || Boolean(block.quote);
+    const matched = hasRealContent
+      ? this.matcher.match(block.tags, ctx.usedTemplateIds, PARAMETERIZED_TEMPLATE_IDS, block.shape)
+      : undefined;
+    // `shape` (backend-verified) always carries exactly enough dataPoints for
+    // its template. The tag-overlap fallback has no such guarantee -- it can
+    // still land on a parameterized template with too few points, which
+    // would render fabricated content for the slots it doesn't cover. Re-verify
+    // here regardless of which path matched, since this is the last point
+    // before that template actually gets built.
+    const minDataPoints = matched && TEMPLATE_MIN_DATA_POINTS.get(matched.id);
+    const hasEnoughDataPoints = minDataPoints === undefined || (block.dataPoints?.length ?? 0) >= minDataPoints;
+    const template = matched && hasEnoughDataPoints ? matched : undefined;
 
-    if (!PARAMETERIZED_TEMPLATE_IDS.has(template.id)) {
+    if (!template || !PARAMETERIZED_TEMPLATE_IDS.has(template.id)) {
       const fallbackText = fallbackTextFor(block);
       return fallbackText
         ? this.buildTextBlock(fallbackText, ctx, {
@@ -313,7 +402,7 @@ export class NewsletterAssembler {
       x: ctx.origin.x + Math.max((ctx.contentWidth - template.size.width) / 2, 0),
       y: ctx.origin.y,
     };
-    const { elements, group } = buildTemplatePlacement(template, origin, content);
+    const { elements, group } = buildTemplatePlacement(template, origin, content, ctx.theme);
     return { elements, group, height: template.size.height, usesAccent: false };
   }
 
@@ -340,13 +429,53 @@ export class NewsletterAssembler {
   }
 }
 
-function accentFor(theme: DesignTheme, index: number): [string, ThemeColorRef] {
+/**
+ * Two ambient half-circle motifs behind every generated page's content — a
+ * wide low dome across the bottom edge and a smaller cap tucked in the top
+ * corner, both `accent-*-tint`'d so `ApplyThemeCommand` recolours them with
+ * the rest of the page. Kept fully inside the page rect (no negative/overflowing
+ * coordinates) and flagged `decorative` so `DesignLintService` never reports
+ * them as out-of-bounds or as overlapping the real content stacked on top.
+ */
+function buildPageDecoration(theme: DesignTheme, pageWidth: number, pageHeight: number): CanvasElement[] {
+  const [bottomFill, bottomRef] = accentFor(theme, 0, 'tint');
+  const [cornerFill, cornerRef] = accentFor(theme, 1, 'tint');
+
+  const bottomBandHeight = Math.round(pageHeight * 0.16);
+  const bottomBand = halfCircle({
+    x: 0,
+    y: pageHeight - bottomBandHeight,
+    width: pageWidth,
+    height: bottomBandHeight,
+    orientation: 'up',
+    name: 'Decoration: bottom band',
+    fill: bottomFill,
+    fillRef: bottomRef,
+  });
+
+  const cornerSize = Math.round(pageWidth * 0.34);
+  const cornerCap = halfCircle({
+    x: pageWidth - cornerSize,
+    y: 0,
+    width: cornerSize,
+    height: Math.round(cornerSize / 2),
+    orientation: 'down',
+    name: 'Decoration: corner cap',
+    fill: cornerFill,
+    fillRef: cornerRef,
+  });
+
+  return [{ ...bottomBand, decorative: true }, { ...cornerCap, decorative: true }];
+}
+
+function accentFor(theme: DesignTheme, index: number, variant: 'solid' | 'tint' = 'solid'): [string, ThemeColorRef] {
   const accents = theme.colors.accents;
   if (!accents.length) {
     return [theme.colors.ink, 'ink'];
   }
-  const accent = accents[index % accents.length];
-  return [accent.solid, `accent-${index % accents.length}-solid`];
+  const i = index % accents.length;
+  const accent = accents[i];
+  return variant === 'tint' ? [accent.tint, `accent-${i}-tint`] : [accent.solid, `accent-${i}-solid`];
 }
 
 function shrinkToFit(element: TextElement): TextElement | null {
@@ -404,6 +533,95 @@ function mapBlockToContent(templateId: string, block: LlmBlock): unknown {
       return {
         items: dataPoints.map((point) => ({ title: point.label, body: point.value })),
       } satisfies IconBulletListContent;
+    case 'template-stat-row':
+      return {
+        stats: dataPoints.map((point) => ({ value: point.value, label: point.label })),
+      } satisfies StatRowContent;
+    case 'template-percentage-bar-ranking':
+      return {
+        items: dataPoints.map((point) => ({ label: point.label, pct: parseLeadingNumber(point.value) })),
+      } satisfies PercentageBarRankingContent;
+    case 'template-radial-process':
+      return {
+        steps: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies RadialProcessContent;
+    case 'template-zigzag-timeline':
+      return {
+        steps: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies ZigzagTimelineContent;
+    case 'template-arc-process':
+      return {
+        steps: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies ArcProcessContent;
+    case 'template-step-tracker':
+      return {
+        steps: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies StepTrackerContent;
+    case 'template-funnel':
+      return {
+        stages: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies FunnelContent;
+    case 'template-quadrant-wheel':
+      return {
+        callouts: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies QuadrantWheelContent;
+    case 'template-matrix-2x2':
+      return {
+        quadrants: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies Matrix2x2Content;
+    case 'template-pyramid':
+      return {
+        tiers: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies PyramidContent;
+    case 'template-stat-spotlight': {
+      const [point] = dataPoints;
+      return {
+        stat: point?.value,
+        statLabel: point?.label,
+        headline: block.purpose || undefined,
+      } satisfies StatSpotlightContent;
+    }
+    case 'template-stat-badge': {
+      const [point] = dataPoints;
+      return { stat: point?.value, statLabel: point?.label } satisfies StatBadgeContent;
+    }
+    case 'template-stat-row-arc':
+      return {
+        stats: dataPoints.map((point) => ({ value: point.value, label: point.label })),
+      } satisfies StatRowArcContent;
+    case 'template-kpi-halfmoon':
+      return {
+        kpis: dataPoints.map((point) => ({ value: point.value, label: point.label })),
+      } satisfies KpiHalfmoonContent;
+    case 'template-kpi-ring-grid':
+      return {
+        kpis: dataPoints.map((point) => ({ value: point.value, label: point.label })),
+      } satisfies KpiRingGridContent;
+    case 'template-quote-spotlight':
+      return { quote: block.quote || undefined } satisfies QuoteSpotlightContent;
+    case 'template-bar-chart-caps':
+      return {
+        items: dataPoints.map((point) => ({ label: point.label, pct: parseLeadingNumber(point.value) })),
+      } satisfies BarChartCapsContent;
+    case 'template-timeline-waypoints':
+      return {
+        steps: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies TimelineWaypointsContent;
+    case 'template-card-grid':
+      return {
+        cards: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies CardGridContent;
+    case 'template-hub-spoke':
+      return {
+        branches: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies HubSpokeContent;
+    case 'template-comparison-columns':
+      // No natural per-item "title" in this layout's single-line bullets --
+      // the point's own label/value collapse into one line rather than a
+      // dropped `value` (see `ComparisonColumnsContent`'s doc comment).
+      return {
+        items: dataPoints.map((point) => ({ text: `${point.label}: ${point.value}` })),
+      } satisfies ComparisonColumnsContent;
     default:
       return undefined;
   }

@@ -44,9 +44,13 @@ export class DesignLintService {
   lint(page: Page): LintIssue[] {
     const elementsById = new Map(page.elements.map((element) => [element.id, element]));
     const visibleElements = page.elements.filter((element) => element.visible);
+    // Ambient background art (see `BaseElement.decorative`) is exempt from
+    // bounds/overlap checks: it's deliberately placed at page edges/corners
+    // and deliberately sits under real content, neither of which is a mistake.
+    const lintableElements = visibleElements.filter((element) => !element.decorative);
     const issues: LintIssue[] = [];
 
-    for (const element of visibleElements) {
+    for (const element of lintableElements) {
       issues.push(...this.checkBounds(element, page));
 
       if (isTextElement(element)) {
@@ -59,7 +63,7 @@ export class DesignLintService {
       }
     }
 
-    issues.push(...this.checkOverlappingElements(visibleElements, page.groups ?? []));
+    issues.push(...this.checkOverlappingElements(lintableElements, page.groups ?? []));
 
     return issues;
   }

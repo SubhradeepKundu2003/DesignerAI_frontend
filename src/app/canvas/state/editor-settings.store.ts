@@ -19,6 +19,7 @@ export class EditorSettingsStore {
   readonly snapEnabled = computed(() => this.state().snapEnabled);
   readonly guidesVisible = computed(() => this.state().guidesVisible);
   readonly marginsVisible = computed(() => this.state().marginsVisible);
+  readonly autoVaryTheme = computed(() => this.state().autoVaryTheme);
 
   toggleGrid(): void {
     this.patch({ gridVisible: !this.state().gridVisible });
@@ -34,6 +35,10 @@ export class EditorSettingsStore {
 
   toggleMargins(): void {
     this.patch({ marginsVisible: !this.state().marginsVisible });
+  }
+
+  toggleAutoVaryTheme(): void {
+    this.patch({ autoVaryTheme: !this.state().autoVaryTheme });
   }
 
   private patch(change: Partial<EditorSettings>): void {

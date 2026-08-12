@@ -2,7 +2,7 @@ import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName } from './icon-svg';
 import { ACCENTS, BORDER, INK, MUTED } from './palette';
-import { circle, connector, frame, icon, text, translate } from './template-kit';
+import { circle, connector, frame, icon, mergeFixedList, text, translate } from './template-kit';
 
 const COL_WIDTH = 310;
 const GAP = 78;
@@ -19,32 +19,34 @@ const BULLET_GAP = 8;
 const ITEM_GAP = 8;
 const ROW_START_Y = HEADER_H + 24;
 
-interface Column {
+interface ColumnMeta {
   title: string;
   iconName: IconName;
   accent: { solid: string; tint: string };
   accentRef: `accent-${number}-solid`;
-  items: string[];
 }
 
-const LEFT: Column = {
-  title: 'Option A',
-  iconName: 'check',
-  accent: ACCENTS.teal,
-  accentRef: 'accent-1-solid',
-  items: ['Lower upfront cost', 'Faster to set up', 'Good for small teams'],
-};
+interface ColumnItem {
+  text: string;
+}
 
-const RIGHT: Column = {
-  title: 'Option B',
-  iconName: 'star',
-  accent: ACCENTS.indigo,
-  accentRef: 'accent-0-solid',
-  items: ['Scales to more users', 'Deeper customization', 'Dedicated support'],
-};
+interface Column extends ColumnMeta {
+  items: ColumnItem[];
+}
 
-const ITEMS_HEIGHT = Math.max(LEFT.items.length, RIGHT.items.length) * ITEM_TEXT_HEIGHT +
-  (Math.max(LEFT.items.length, RIGHT.items.length) - 1) * ITEM_GAP;
+const LEFT_META: ColumnMeta = { title: 'Option A', iconName: 'check', accent: ACCENTS.teal, accentRef: 'accent-1-solid' };
+const RIGHT_META: ColumnMeta = { title: 'Option B', iconName: 'star', accent: ACCENTS.indigo, accentRef: 'accent-0-solid' };
+
+// Two items per column, not the old three -- lines up with every other
+// `bullet_list` pool member's exact 4-slot content contract (see
+// `card-grid.template.ts`'s matching comment). The column headers
+// (`LEFT_META`/`RIGHT_META`) stay fixed placeholder copy either way: a flat
+// 4-item `dataPoints` list has no natural "column name" to map onto them.
+const LEFT_ITEMS: ColumnItem[] = [{ text: 'Lower upfront cost' }, { text: 'Faster to set up' }];
+const RIGHT_ITEMS: ColumnItem[] = [{ text: 'Scales to more users' }, { text: 'Deeper customization' }];
+const DEFAULT_ITEMS: ColumnItem[] = [...LEFT_ITEMS, ...RIGHT_ITEMS];
+
+const ITEMS_HEIGHT = LEFT_ITEMS.length * ITEM_TEXT_HEIGHT + (LEFT_ITEMS.length - 1) * ITEM_GAP;
 const HEIGHT = ROW_START_Y + ITEMS_HEIGHT + 16;
 
 /**
@@ -89,7 +91,7 @@ function buildColumn(col: Column, index: number): CanvasElement[] {
       y: 0,
       width: COL_WIDTH - BULLET_D - BULLET_GAP,
       height: ITEM_TEXT_HEIGHT,
-      text: item,
+      text: item.text,
       name: `Column ${index + 1} item ${i + 1}`,
       fontSize: 14,
       fill: INK,
@@ -118,14 +120,24 @@ function buildColumn(col: Column, index: number): CanvasElement[] {
   return [...header, listFrame, ...rowElements];
 }
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface ComparisonColumnsContent {
+  /** Positionally merged onto the default 4 items (2 left, 2 right, in that
+   * order) — see `mergeFixedList`. Column headers stay fixed placeholder copy. */
+  readonly items?: readonly Partial<{ text: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: ComparisonColumnsContent): CanvasElement[] {
+  const items = mergeFixedList<ColumnItem>(DEFAULT_ITEMS, content?.items);
+  const left: Column = { ...LEFT_META, items: items.slice(0, LEFT_ITEMS.length) };
+  const right: Column = { ...RIGHT_META, items: items.slice(LEFT_ITEMS.length) };
+
   const rightX = COL_WIDTH + GAP;
   const midX = COL_WIDTH + GAP / 2;
   const badgeD = 40;
 
   const elements: CanvasElement[] = [
-    ...buildColumn(LEFT, 0),
-    ...translate(buildColumn(RIGHT, 1), { x: rightX, y: 0 }),
+    ...buildColumn(left, 0),
+    ...translate(buildColumn(right, 1), { x: rightX, y: 0 }),
     connector({ x: midX, y: 0 }, { x: midX, y: HEIGHT }, { name: 'Divider', stroke: BORDER, strokeRef: 'border', strokeWidth: 2 }),
     circle({ x: midX - badgeD / 2, y: HEADER_H / 2 - badgeD / 2, diameter: badgeD, fill: INK, fillRef: 'ink', name: 'VS badge' }),
     text({
@@ -147,8 +159,8 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
 
 const THUMBNAIL =
   `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">` +
-  `<rect x="0" y="0" width="${COL_WIDTH}" height="${HEADER_H}" rx="14" fill="${LEFT.accent.solid}"/>` +
-  `<rect x="${COL_WIDTH + GAP}" y="0" width="${COL_WIDTH}" height="${HEADER_H}" rx="14" fill="${RIGHT.accent.solid}"/>` +
+  `<rect x="0" y="0" width="${COL_WIDTH}" height="${HEADER_H}" rx="14" fill="${LEFT_META.accent.solid}"/>` +
+  `<rect x="${COL_WIDTH + GAP}" y="0" width="${COL_WIDTH}" height="${HEADER_H}" rx="14" fill="${RIGHT_META.accent.solid}"/>` +
   `<line x1="${COL_WIDTH + GAP / 2}" y1="0" x2="${COL_WIDTH + GAP / 2}" y2="${HEIGHT}" stroke="${MUTED}" stroke-width="2"/>` +
   `</svg>`;
 

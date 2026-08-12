@@ -105,7 +105,10 @@ export class ElementFactory {
     };
   }
 
-  createShape(shape: ShapeKind): ShapeElement {
+  // `semicircle` is programmatic-only for now (templates + page decoration,
+  // see `template-kit.ts`'s `halfCircle()`) — no toolbar insert kind for it,
+  // so this only ever needs to build the two kinds a user can pick by hand.
+  createShape(shape: Extract<ShapeKind, 'rectangle' | 'circle'>): ShapeElement {
     const { fill, stroke, cornerRadius } = DEFAULTS.shape;
     const name = shape === 'circle' ? 'Circle' : 'Rectangle';
 

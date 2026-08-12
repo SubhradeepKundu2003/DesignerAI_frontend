@@ -1,4 +1,5 @@
 import { CanvasElement } from './canvas-element.model';
+import { DesignTheme } from './design-theme.model';
 
 /**
  * A hand-built, editable infographic layout — the Tier 2 alternative to the
@@ -30,5 +31,5 @@ export interface InfographicTemplate {
    * pass content already know which template they matched and cast to that
    * template's own exported content type (e.g. `StatCalloutContent`).
    */
-  build(origin: { x: number; y: number }, content?: unknown): CanvasElement[];
+  build(origin: { x: number; y: number }, content?: unknown, theme?: DesignTheme): CanvasElement[];
 }

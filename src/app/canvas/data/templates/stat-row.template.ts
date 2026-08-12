@@ -2,7 +2,7 @@ import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName } from './icon-svg';
 import { ACCENT_CYCLE, BORDER, MUTED, accentRef } from './palette';
-import { circle, connector, frame, icon, text, translate } from './template-kit';
+import { circle, connector, frame, icon, mergeFixedList, text, translate } from './template-kit';
 
 const COLS = 3;
 const COL_WIDTH = 216;
@@ -23,6 +23,11 @@ const STATS: { value: string; label: string; iconName: IconName }[] = [
   { value: '99%', label: 'Satisfaction', iconName: 'check' },
 ];
 
+export interface StatRowContent {
+  /** Positionally merged onto the default 3 stats — see `mergeFixedList`. */
+  readonly stats?: readonly Partial<{ value: string; label: string }>[];
+}
+
 /**
  * Rebuilt on Frames (Track D3): three flat, single-axis row-frames — badges,
  * values, labels — rather than one frame per column, because a badge's icon
@@ -32,10 +37,11 @@ const STATS: { value: string; label: string; iconName: IconName }[] = [
  * output, not frame children themselves — this is the same "auto-layout row
  * plus a pinned overlay" split real design tools use for a badge-in-circle.
  */
-function build(origin: { x: number; y: number }): CanvasElement[] {
+function build(origin: { x: number; y: number }, content?: StatRowContent): CanvasElement[] {
+  const stats = mergeFixedList<(typeof STATS)[number]>(STATS, content?.stats);
   const elements: CanvasElement[] = [];
 
-  const badges = STATS.map((_, i) =>
+  const badges = stats.map((_, i) =>
     circle({
       x: 0,
       y: 0,
@@ -56,7 +62,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
   });
   const positionedBadges = badgeRow.slice(1);
 
-  const values = STATS.map((stat, i) =>
+  const values = stats.map((stat, i) =>
     text({
       x: 0,
       y: 0,
@@ -82,7 +88,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
     children: values,
   });
 
-  const labels = STATS.map((stat, i) =>
+  const labels = stats.map((stat, i) =>
     text({
       x: 0,
       y: 0,
@@ -108,7 +114,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
 
   elements.push(...badgeRow, ...valueRow, ...labelRow);
 
-  STATS.forEach((stat, i) => {
+  stats.forEach((stat, i) => {
     const badge = positionedBadges[i];
     elements.push(
       icon({

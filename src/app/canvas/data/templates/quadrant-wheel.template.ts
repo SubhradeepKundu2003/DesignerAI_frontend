@@ -1,9 +1,10 @@
 import { CanvasElement, ImageElement } from '../../models/canvas-element.model';
+import { DesignTheme } from '../../models/design-theme.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName, iconDataUrl } from './icon-svg';
 import { ACCENT_CYCLE, BORDER, INK, MUTED, accentRef } from './palette';
 import { generateId } from '../../utils/id.util';
-import { rect, text, translate } from './template-kit';
+import { mergeFixedList, rect, text, translate } from './template-kit';
 
 /**
  * The one shape here that genuinely can't be a native rectangle/circle: a
@@ -36,7 +37,8 @@ const CALLOUTS: { corner: 'NW' | 'NE' | 'SW' | 'SE'; wedge: number; title: strin
   { corner: 'SE', wedge: 1, title: 'Improve', body: 'Feed what you learned back in.' },
 ];
 
-function wheelSvg(): string {
+function wheelSvg(accents: readonly { readonly solid: string }[]): string {
+  const palette = accents.length > 0 ? accents : ACCENT_CYCLE;
   const cx = WHEEL_BOX / 2;
   const cy = WHEEL_BOX / 2;
   const ringR = (OUTER_R + INNER_R) / 2;
@@ -47,7 +49,7 @@ function wheelSvg(): string {
   const iconR = ringR;
 
   const arcs = WEDGES.map((_, i) => {
-    const accent = ACCENT_CYCLE[i];
+    const accent = palette[i % palette.length];
     const offset = -(i * segFull);
     return `<circle cx="${cx}" cy="${cy}" r="${ringR}" fill="none" stroke="${accent.solid}" stroke-width="${ringStroke}" stroke-dasharray="${seg} ${circumference - seg}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
   }).join('');
@@ -78,7 +80,14 @@ function rawIcon(name: IconName, color: string, size: number): string {
   return match ? match[1] : '';
 }
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface QuadrantWheelContent {
+  /** Positionally merged onto the default 4 callouts — see `mergeFixedList`. */
+  readonly callouts?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: QuadrantWheelContent, theme?: DesignTheme): CanvasElement[] {
+  const callouts = mergeFixedList<(typeof CALLOUTS)[number]>(CALLOUTS, content?.callouts);
+  const accents = theme?.colors.accents ?? ACCENT_CYCLE;
   const elements: CanvasElement[] = [];
 
   const wheelX = CALLOUT.width + GAP;
@@ -95,12 +104,12 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
     locked: false,
     visible: true,
     type: 'image',
-    src: wheelSvg(),
+    src: wheelSvg(accents),
   };
   elements.push(wheelImage);
 
-  CALLOUTS.forEach((callout, i) => {
-    const accent = ACCENT_CYCLE[callout.wedge];
+  callouts.forEach((callout, i) => {
+    const accent = accents[callout.wedge % accents.length];
     const x = callout.corner === 'NW' || callout.corner === 'SW' ? 0 : wheelX + WHEEL_BOX + GAP;
     const y = callout.corner === 'NW' || callout.corner === 'NE' ? 0 : CALLOUT.height + ROW_GAP;
 

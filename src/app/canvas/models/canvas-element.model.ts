@@ -13,7 +13,10 @@ import { ThemeColorRef } from './design-theme.model';
 
 export type ElementType = 'text' | 'shape' | 'divider' | 'image' | 'icon' | 'frame';
 
-export type ShapeKind = 'rectangle' | 'circle';
+export type ShapeKind = 'rectangle' | 'circle' | 'semicircle';
+
+/** Which edge of a `semicircle` element's box its flat (diameter) side sits on — the dome bulges toward the opposite edge. Ignored for other shape kinds. */
+export type ArcOrientation = 'up' | 'down' | 'left' | 'right';
 
 export type TextAlign = 'left' | 'center' | 'right';
 
@@ -39,6 +42,13 @@ export interface BaseElement {
   visible: boolean;
   /** The id of the {@link GroupElement} this element belongs to, if any. */
   parentId?: string;
+  /**
+   * Purely ambient background art (e.g. a page-level half-circle motif) —
+   * excluded from `DesignLintService`'s bounds/overlap checks, which exist to
+   * catch real content mistakes, not to flag a deliberately off-canvas or
+   * content-overlapping decorative shape as an error.
+   */
+  decorative?: boolean;
 }
 
 /**
@@ -93,8 +103,10 @@ export interface ShapeElement extends BaseElement {
   /** When set, `stroke` is a theme colour and gets recomputed on `ApplyThemeCommand`. */
   strokeRef?: ThemeColorRef;
   strokeWidth: number;
-  /** Rectangles only; ignored when `shape` is `circle`. */
+  /** Rectangles only; ignored when `shape` is `circle` or `semicircle`. */
   cornerRadius: number;
+  /** `semicircle` only — which box edge the flat side sits on. Defaults to `'up'` when unset. */
+  arcOrientation?: ArcOrientation;
 }
 
 export interface DividerElement extends BaseElement {

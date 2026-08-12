@@ -1,39 +1,37 @@
 import { CanvasElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENT_CYCLE, INK, accentRef } from './palette';
-import { mergeFixedList, rect, text, translate } from './template-kit';
+import { halfCircle, mergeFixedList, rect, text, translate } from './template-kit';
 
 const WIDTH = 640;
 const LABEL_HEIGHT = 20;
 const GAP_LABEL_BAR = 8;
-const BAR_HEIGHT = 14;
-const ROW_GAP = 24;
+const BAR_HEIGHT = 16;
+const ROW_GAP = 22;
 const ROW_BLOCK = LABEL_HEIGHT + GAP_LABEL_BAR + BAR_HEIGHT;
 const VALUE_WIDTH = 70;
+const CAP_WIDTH = BAR_HEIGHT;
 
 const ITEMS: { label: string; pct: number }[] = [
-  { label: 'Cloud & digital services', pct: 82 },
-  { label: 'AI & automation', pct: 74 },
-  { label: 'Enterprise applications', pct: 65 },
-  { label: 'Cybersecurity', pct: 58 },
+  { label: 'Email newsletter', pct: 88 },
+  { label: 'Internal portal', pct: 71 },
+  { label: 'Social channels', pct: 54 },
+  { label: 'Printed handout', pct: 22 },
 ];
 
 const HEIGHT = ITEMS.length * ROW_BLOCK + (ITEMS.length - 1) * ROW_GAP;
 
 /**
- * A ranked list of labelled percentage bars — the editable counterpart to
- * the flattened "Four-bar percentage ranking" PNG in `infographics.manifest.ts`
- * (`infographic-06`). Manually positioned like `vertical-timeline.template.ts`
- * rather than built on `frame()`: a filled bar sits *on top of* its own
- * track rect at the same origin, which a single-axis auto-layout frame can't
- * express (frame children only ever stack, never overlay).
+ * A ranked list of labelled percentage bars whose filled portion ends in an
+ * explicit half-circle cap, rather than `percentage-bar-ranking.template.ts`'s
+ * fully rounded pill track — a second look for the `bar_chart` shape pool.
  */
-export interface PercentageBarRankingContent {
+export interface BarChartCapsContent {
   /** Positionally merged onto the default 4 rows — see `mergeFixedList`. */
   readonly items?: readonly Partial<{ label: string; pct: number }>[];
 }
 
-function build(origin: { x: number; y: number }, content?: PercentageBarRankingContent): CanvasElement[] {
+function build(origin: { x: number; y: number }, content?: BarChartCapsContent): CanvasElement[] {
   const items = mergeFixedList<(typeof ITEMS)[number]>(ITEMS, content?.items);
   const elements: CanvasElement[] = [];
 
@@ -43,6 +41,7 @@ function build(origin: { x: number; y: number }, content?: PercentageBarRankingC
     const rowY = i * (ROW_BLOCK + ROW_GAP);
     const barY = rowY + LABEL_HEIGHT + GAP_LABEL_BAR;
     const fillWidth = Math.max(BAR_HEIGHT, (WIDTH * item.pct) / 100);
+    const fillRectWidth = Math.max(0, fillWidth - CAP_WIDTH);
 
     elements.push(
       text({
@@ -83,12 +82,21 @@ function build(origin: { x: number; y: number }, content?: PercentageBarRankingC
       rect({
         x: 0,
         y: barY,
-        width: fillWidth,
+        width: fillRectWidth,
         height: BAR_HEIGHT,
         fill: accent.solid,
         fillRef: accentRef(accentIndex, 'solid'),
-        cornerRadius: BAR_HEIGHT / 2,
         name: `Rank ${i + 1} fill`,
+      }),
+      halfCircle({
+        x: fillRectWidth,
+        y: barY,
+        width: CAP_WIDTH,
+        height: BAR_HEIGHT,
+        orientation: 'right',
+        fill: accent.solid,
+        fillRef: accentRef(accentIndex, 'solid'),
+        name: `Rank ${i + 1} fill cap`,
       }),
     );
   });
@@ -111,9 +119,9 @@ const THUMBNAIL =
   }).join('') +
   `</svg>`;
 
-export const PERCENTAGE_BAR_RANKING_TEMPLATE: InfographicTemplate = {
-  id: 'template-percentage-bar-ranking',
-  label: 'Percentage bar ranking',
+export const BAR_CHART_CAPS_TEMPLATE: InfographicTemplate = {
+  id: 'template-bar-chart-caps',
+  label: 'Bar ranking with rounded caps',
   tags: ['ranking', 'bars', 'percentage', 'comparison', 'list'],
   size: { width: WIDTH, height: HEIGHT },
   thumbnail: `data:image/svg+xml;utf8,${encodeURIComponent(THUMBNAIL)}`,

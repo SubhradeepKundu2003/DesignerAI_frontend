@@ -154,7 +154,12 @@ function buildDocumentResult(text: string): DocumentGenerateResult {
     .filter(Boolean);
 
   if (paragraphs.length === 0) {
-    return { pages: [{ blocks: [headingBlock('Untitled'), bodyBlock('The uploaded document had no readable text.')] }] };
+    return {
+      pages: [
+        { blocks: [headingBlock('Untitled'), bodyBlock('The uploaded document had no readable text.')], warnings: [] },
+      ],
+      images: [],
+    };
   }
 
   const pages: SectionPlan[] = [];
@@ -164,9 +169,9 @@ function buildDocumentResult(text: string): DocumentGenerateResult {
       headingBlock(headline(group[0])),
       ...group.map((paragraph) => bodyBlock(paragraph)),
     ];
-    pages.push({ blocks });
+    pages.push({ blocks, warnings: [] });
   }
-  return { pages };
+  return { pages, images: [] };
 }
 
 function headingBlock(text: string): LlmBlock {

@@ -60,6 +60,11 @@ export class PersistenceService {
    * edit, so it replaces the document directly instead of going through a
    * command — there is no history yet for it to belong to.
    */
+  /** The project currently open, or `null` before `openProject` has run. */
+  currentProjectId(): string | null {
+    return this.projectId;
+  }
+
   openProject(projectId: string): void {
     this.projectId = projectId;
     this.hasSave.set(this.storage.has(this.cacheKey(projectId)));

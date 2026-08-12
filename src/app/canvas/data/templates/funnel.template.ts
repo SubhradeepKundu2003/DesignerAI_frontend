@@ -2,7 +2,7 @@ import { CanvasElement, ImageElement } from '../../models/canvas-element.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENT_CYCLE, MUTED } from './palette';
 import { generateId } from '../../utils/id.util';
-import { text, translate } from './template-kit';
+import { mergeFixedList, text, translate } from './template-kit';
 
 /**
  * The tapering stages can't be native rectangles (each row is a trapezoid),
@@ -57,7 +57,13 @@ function funnelSvg(): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface FunnelContent {
+  /** Positionally merged onto the default 5 stages — see `mergeFixedList`. */
+  readonly stages?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: FunnelContent): CanvasElement[] {
+  const stages = mergeFixedList<(typeof STAGES)[number]>(STAGES, content?.stages);
   const elements: CanvasElement[] = [];
 
   const funnelImage: ImageElement = {
@@ -76,7 +82,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
   };
   elements.push(funnelImage);
 
-  STAGES.forEach((stage, i) => {
+  stages.forEach((stage, i) => {
     const { y } = trapezoid(i);
     const rowCenterY = y + STAGE_H / 2;
 

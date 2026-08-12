@@ -2,8 +2,13 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signa
 
 import { AgentClient } from '../../../canvas/agent/agent-client';
 import { AddElementsCommand } from '../../../canvas/commands/add-elements.command';
+import { ApplyThemeCommand } from '../../../canvas/commands/apply-theme.command';
 import { CommandBus } from '../../../canvas/commands/command-bus.service';
+import { CompositeCommand } from '../../../canvas/commands/composite.command';
+import { pickNextTheme } from '../../../canvas/data/design-themes';
+import { Command } from '../../../canvas/models/commands.model';
 import { CanvasStore } from '../../../canvas/state/canvas.store';
+import { EditorSettingsStore } from '../../../canvas/state/editor-settings.store';
 import { IconButton } from '../../../shared/components/icon-button/icon-button';
 import { SelectInput, SelectOption } from '../../../shared/components/select-input/select-input';
 
@@ -34,6 +39,7 @@ export class GenerateMenu {
   private readonly canvas = inject(CanvasStore);
   private readonly commands = inject(CommandBus);
   private readonly host = inject(ElementRef<HTMLElement>);
+  protected readonly editorSettings = inject(EditorSettingsStore);
 
   private summaryFlashTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -90,18 +96,29 @@ export class GenerateMenu {
     this.busy.set(true);
     this.error.set(null);
 
+    // Picked up front so the request's `theme` field and the eventual commit
+    // agree — resolved as one dispatch below, alongside `AddElementsCommand`,
+    // so "Generate" still costs exactly one undo step even when it also
+    // rotates the colour theme.
+    const nextTheme = this.editorSettings.autoVaryTheme() ? pickNextTheme(this.canvas.theme()) : this.canvas.theme();
+
     this.agentClient
       .generate({
         prompt,
         page: { id: page.id, width: page.width, height: page.height },
-        theme: this.canvas.theme(),
+        theme: nextTheme,
       })
       .subscribe({
         next: (result) => {
           if (page.id !== this.canvas.activePage().id) {
             this.canvas.setActivePage(page.id);
           }
-          this.commands.dispatch(new AddElementsCommand(this.canvas, result.elements));
+          const steps: Command[] = [];
+          if (nextTheme.id !== this.canvas.theme().id) {
+            steps.push(new ApplyThemeCommand(this.canvas, nextTheme));
+          }
+          steps.push(new AddElementsCommand(this.canvas, result.elements));
+          this.commands.dispatch(steps.length > 1 ? new CompositeCommand(steps, 'Generate design') : steps[0]);
           this.busy.set(false);
           this.prompt.set('');
           this.flashSummary(result.summary);

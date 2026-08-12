@@ -1,9 +1,10 @@
 import { CanvasElement, ImageElement } from '../../models/canvas-element.model';
+import { DesignTheme } from '../../models/design-theme.model';
 import { InfographicTemplate } from '../../models/infographic-template.model';
 import { IconName } from './icon-svg';
 import { ACCENT_CYCLE, INK, MUTED } from './palette';
 import { generateId } from '../../utils/id.util';
-import { circle, icon, text, translate } from './template-kit';
+import { circle, icon, mergeFixedList, text, translate } from './template-kit';
 
 /**
  * The ribbons linking each pair of nodes are thick bezier strokes that bulge
@@ -28,13 +29,14 @@ const STEPS: { title: string; body: string; iconName: IconName }[] = [
   { title: 'Grow', body: 'Ship it and build on what works.', iconName: 'trendUp' },
 ];
 
-function ribbonSvg(): string {
+function ribbonSvg(accents: readonly { readonly solid: string }[]): string {
+  const palette = accents.length > 0 ? accents : ACCENT_CYCLE;
   const arcs = [0, 1, 2].map((i) => {
     const dy = i % 2 === 0 ? -BULGE : BULGE;
     const x1 = XS[i];
     const x2 = XS[i + 1];
     const midX = (x1 + x2) / 2;
-    const accent = ACCENT_CYCLE[i % ACCENT_CYCLE.length];
+    const accent = palette[i % palette.length];
     return `<path d="M ${x1} ${CENTER_Y} Q ${midX} ${CENTER_Y + dy} ${x2} ${CENTER_Y}" stroke="${accent.solid}" stroke-width="34" fill="none" stroke-linecap="round"/>`;
   }).join('');
 
@@ -42,7 +44,13 @@ function ribbonSvg(): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function build(origin: { x: number; y: number }): CanvasElement[] {
+export interface ArcProcessContent {
+  /** Positionally merged onto the default 4 steps — see `mergeFixedList`. */
+  readonly steps?: readonly Partial<{ title: string; body: string }>[];
+}
+
+function build(origin: { x: number; y: number }, content?: ArcProcessContent, theme?: DesignTheme): CanvasElement[] {
+  const steps = mergeFixedList<(typeof STEPS)[number]>(STEPS, content?.steps);
   const elements: CanvasElement[] = [];
 
   const ribbons: ImageElement = {
@@ -57,11 +65,11 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
     locked: false,
     visible: true,
     type: 'image',
-    src: ribbonSvg(),
+    src: ribbonSvg(theme?.colors.accents ?? ACCENT_CYCLE),
   };
   elements.push(ribbons);
 
-  STEPS.forEach((step, i) => {
+  steps.forEach((step, i) => {
     const cx = XS[i];
     const above = i % 2 === 1;
     const labelY = above ? CENTER_Y - NODE_D / 2 - 74 : CENTER_Y + NODE_D / 2 + 16;
