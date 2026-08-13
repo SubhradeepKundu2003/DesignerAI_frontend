@@ -16,7 +16,8 @@ import { GenerateMenu } from './generate-menu';
 class FakeAgentClient extends AgentClient {
   response: Observable<AgentGenerateResult> = of({
     summary: 'Generated a starter layout',
-    elements: [],
+    blocks: [{ kind: 'heading', text: 'A bold summer sale flyer', tags: [] }],
+    warnings: [],
   });
   lastRequest: AgentGenerateRequest | undefined;
 

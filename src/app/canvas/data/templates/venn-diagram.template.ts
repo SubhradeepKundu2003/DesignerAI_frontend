@@ -11,6 +11,14 @@ const HEIGHT = CIRCLE_D + 70;
 const LEFT = { title: 'Design', body: 'Craft, taste,\nuser empathy' };
 const RIGHT = { title: 'Engineering', body: 'Systems, rigor,\nscale' };
 const CENTER_LABEL = 'Product';
+const CAPTION = 'Where taste and rigor overlap is where the product actually gets built.';
+
+export interface VennDiagramContent {
+  readonly left?: { readonly title?: string; readonly body?: string };
+  readonly right?: { readonly title?: string; readonly body?: string };
+  readonly centerLabel?: string;
+  readonly caption?: string;
+}
 
 /**
  * Two overlapping tinted circles with a shared centre label — the "where A
@@ -19,7 +27,11 @@ const CENTER_LABEL = 'Product';
  * blend-mode primitive the element model doesn't have, so the overlap band
  * reads as a third, slightly darker tint wherever the two discs cross.
  */
-function build(origin: { x: number; y: number }): CanvasElement[] {
+function build(origin: { x: number; y: number }, content?: VennDiagramContent): CanvasElement[] {
+  const left = { ...LEFT, ...content?.left };
+  const right = { ...RIGHT, ...content?.right };
+  const centerLabel = content?.centerLabel ?? CENTER_LABEL;
+  const caption = content?.caption ?? CAPTION;
   const elements: CanvasElement[] = [];
   const leftX = 0;
   const rightX = WIDTH - CIRCLE_D;
@@ -36,7 +48,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: circleY + CIRCLE_D / 2 - 60,
       width: 190,
       height: 24,
-      text: LEFT.title,
+      text: left.title,
       name: 'Left label title',
       fontSize: 18,
       fontStyle: 'bold',
@@ -48,7 +60,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: circleY + CIRCLE_D / 2 - 32,
       width: 190,
       height: 40,
-      text: LEFT.body,
+      text: left.body,
       name: 'Left label body',
       fontSize: 12.5,
       align: 'right',
@@ -60,7 +72,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: circleY + CIRCLE_D / 2 - 60,
       width: 190,
       height: 24,
-      text: RIGHT.title,
+      text: right.title,
       name: 'Right label title',
       fontSize: 18,
       fontStyle: 'bold',
@@ -72,7 +84,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: circleY + CIRCLE_D / 2 - 32,
       width: 190,
       height: 40,
-      text: RIGHT.body,
+      text: right.body,
       name: 'Right label body',
       fontSize: 12.5,
       align: 'left',
@@ -84,7 +96,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: circleY + CIRCLE_D / 2 - 10,
       width: 140,
       height: 24,
-      text: CENTER_LABEL,
+      text: centerLabel,
       name: 'Overlap label',
       fontSize: 16,
       fontStyle: 'bold',
@@ -96,7 +108,7 @@ function build(origin: { x: number; y: number }): CanvasElement[] {
       y: CIRCLE_D + 20,
       width: WIDTH,
       height: 24,
-      text: 'Where taste and rigor overlap is where the product actually gets built.',
+      text: caption,
       name: 'Caption',
       fontSize: 13,
       align: 'center',

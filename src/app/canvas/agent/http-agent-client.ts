@@ -16,8 +16,8 @@ import { DocumentGenerateResult } from './document-generate.model';
  * generation behind the same {@link AgentClient} contract {@link MockAgentClient} implements.
  *
  * No camelCase/snake_case mapping layer, unlike `ProjectApiService`: the backend's
- * response is defined camelCase-first to match `AgentGenerateResult`/`CanvasElement`
- * exactly, the same "wire shape is the app's shape" convention already used for the
+ * response is defined camelCase-first to match `AgentGenerateResult` exactly, the
+ * same "wire shape is the app's shape" convention already used for the
  * `CanvasDocument` the persistence endpoints store verbatim.
  */
 @Injectable()

@@ -12,13 +12,22 @@ import { IconName } from '../../shared/icons/icon-registry';
 export type LlmBlockKind = 'heading' | 'body' | 'highlight' | 'infographic';
 
 /**
- * The six infographic templates whose `build()` accepts real content (mirrors
- * `PARAMETERIZED_TEMPLATE_IDS` in `newsletter-assembler.service.ts` and the
- * backend's `INFOGRAPHIC_SHAPES`). The backend's guardrail pass
- * (`app/agent/guardrails.py`) only ever sets `LlmBlock.shape` to one of these
- * -- same "asset grounding" contract `icon` already has via `IconName`.
+ * The content shapes every real infographic template in the catalog can be
+ * grouped under (mirrors `PARAMETERIZED_TEMPLATE_IDS` in
+ * `newsletter-assembler.service.ts` and the backend's `INFOGRAPHIC_SHAPES`).
+ * The backend's guardrail pass (`app/agent/guardrails.py`) only ever sets
+ * `LlmBlock.shape` to one of these -- same "asset grounding" contract `icon`
+ * already has via `IconName`.
  */
-export type InfographicShape = 'stat' | 'stat_row' | 'kpi' | 'bar_chart' | 'timeline' | 'bullet_list' | 'quote';
+export type InfographicShape =
+  | 'stat'
+  | 'venn'
+  | 'stat_row'
+  | 'kpi'
+  | 'bar_chart'
+  | 'timeline'
+  | 'bullet_list'
+  | 'quote';
 
 export interface DataPoint {
   readonly label: string;

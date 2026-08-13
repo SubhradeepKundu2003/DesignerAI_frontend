@@ -1,8 +1,7 @@
 import { Observable } from 'rxjs';
 
-import { CanvasElement } from '../models/canvas-element.model';
 import { DesignTheme } from '../models/design-theme.model';
-import { DocumentGenerateResult } from './document-generate.model';
+import { DocumentGenerateResult, LlmBlock } from './document-generate.model';
 
 /**
  * What the Generate panel sends: everything a client needs to place a design
@@ -23,8 +22,15 @@ export interface AgentGenerateRequest {
 export interface AgentGenerateResult {
   /** Short human-readable description of what was generated, shown in the panel. */
   readonly summary: string;
-  /** Fully-formed, already positioned and themed elements, ready for `AddElementsCommand`. */
-  readonly elements: readonly CanvasElement[];
+  /**
+   * Content and intent only, no coordinates, no template ids — same contract
+   * `DocumentGenerateResult.pages[n].blocks` uses. `NewsletterAssembler.
+   * assembleOntoPage()` is the only place this becomes positioned, templated
+   * `CanvasElement`s, ready for `AddElementsCommand`.
+   */
+  readonly blocks: readonly LlmBlock[];
+  /** Content/design guardrail findings, computed server-side -- see `app/agent/guardrails.py`. */
+  readonly warnings: readonly string[];
 }
 
 /** What the document-generation panel sends: a whole file plus the project's theme. */
@@ -53,9 +59,9 @@ export abstract class AgentClient {
   abstract generate(request: AgentGenerateRequest): Observable<AgentGenerateResult>;
   /**
    * Generates a whole multi-page newsletter's content plan from an uploaded
-   * document. Unlike {@link generate}, the result carries no coordinates or
-   * template ids — `NewsletterAssembler` is the only place it becomes
-   * positioned, templated `CanvasElement`s.
+   * document. Same "content and intent only" contract {@link generate} uses
+   * for a single page — `NewsletterAssembler` is the only place either
+   * result becomes positioned, templated `CanvasElement`s.
    */
   abstract generateFromDocument(
     request: AgentGenerateFromDocumentRequest,

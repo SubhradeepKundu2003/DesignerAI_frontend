@@ -22,6 +22,7 @@ import { InfographicTemplate } from '../models/infographic-template.model';
  */
 export const SHAPE_TEMPLATE_IDS: Record<InfographicShape, readonly string[]> = {
   stat: ['template-stat-callout', 'template-stat-spotlight', 'template-stat-badge'],
+  venn: ['template-venn-diagram'],
   stat_row: ['template-stat-row', 'template-stat-row-arc'],
   kpi: ['template-kpi-dashboard', 'template-kpi-halfmoon', 'template-kpi-ring-grid'],
   bar_chart: ['template-bar-chart', 'template-percentage-bar-ranking', 'template-bar-chart-caps'],

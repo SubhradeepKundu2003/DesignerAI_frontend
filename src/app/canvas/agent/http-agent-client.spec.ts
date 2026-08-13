@@ -39,7 +39,8 @@ describe('HttpAgentClient', () => {
 
     const response: AgentGenerateResult = {
       summary: 'A bold summer sale flyer',
-      elements: [],
+      blocks: [],
+      warnings: [],
     };
     req.flush(response);
 

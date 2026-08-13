@@ -27,6 +27,7 @@ import { StatRowArcContent } from '../data/templates/stat-row-arc.template';
 import { StatSpotlightContent } from '../data/templates/stat-spotlight.template';
 import { StepTrackerContent } from '../data/templates/step-tracker.template';
 import { TimelineWaypointsContent } from '../data/templates/timeline-waypoints.template';
+import { VennDiagramContent } from '../data/templates/venn-diagram.template';
 import { VerticalTimelineContent } from '../data/templates/vertical-timeline.template';
 import { ZigzagTimelineContent } from '../data/templates/zigzag-timeline.template';
 import { CanvasElement, GroupElement, IconElement, TextElement, isTextElement } from '../models/canvas-element.model';
@@ -40,9 +41,9 @@ import { buildTemplatePlacement } from '../utils/template-placement.util';
 import { DesignLintService } from './design-lint.service';
 import { InfographicMatcherService, SHAPE_TEMPLATE_IDS } from './infographic-matcher.service';
 
-/** Mirrors `PAGE_MARGIN`/`GAP` and the heading/body/highlight font sizes the
- * backend's `layout.py` uses for the single-page prompt flow — kept visually
- * consistent between the two generation paths. */
+/** Heading/body/highlight font sizes and stacking gap shared by both
+ * `assemble()` and `assembleOntoPage()`, so a prompt-generated page and a
+ * document-generated one look consistent. */
 const GAP = 16;
 const HEADING_FONT_SIZE = 32;
 const BODY_FONT_SIZE = 16;
@@ -64,6 +65,7 @@ const PARAMETERIZED_TEMPLATE_IDS = new Set(Object.values(SHAPE_TEMPLATE_IDS).fla
  * list, so it has no fabrication risk to guard against here. */
 const SHAPE_DATA_POINT_COUNT: Partial<Record<InfographicShape, number>> = {
   stat: 1,
+  venn: 2,
   stat_row: 3,
   kpi: 4,
   bar_chart: 4,
@@ -120,15 +122,17 @@ interface PageJob {
 }
 
 /**
- * Turns a backend `DocumentGenerateResult` (content + intent only, no
- * coordinates, no template ids — see `document-generate.model.ts`) into
- * positioned, templated pages ready for `AddPageCommand`/`AddElementsCommand`.
+ * Turns backend content blocks (content + intent only, no coordinates, no
+ * template ids — see `document-generate.model.ts`) into positioned, templated
+ * elements ready for `AddPageCommand`/`AddElementsCommand`. The one place
+ * either generation flow becomes real geometry: `assemble()` for a whole
+ * document (`DocumentGenerateResult`, one page per plan, can spill a page's
+ * overflow onto a fresh one), `assembleOntoPage()` for a single prompt-driven
+ * page (`GenerateMenu`) added onto a page the caller already picked.
  *
  * Three responsibilities, in order:
- * 1. Stack `heading`/`body`/`highlight` blocks top-down (same deterministic
- *    margin/gap approach `layout.py` uses server-side for the single-page
- *    flow, ported here since this is the one place with both the real
- *    `measureTextHeight` and the `InfographicTemplate` catalog).
+ * 1. Stack `heading`/`body`/`highlight` blocks top-down (deterministic
+ *    margin/gap layout, using the real `measureTextHeight`).
  * 2. Match each `infographic` block to a real template by tag overlap
  *    (`InfographicMatcherService`) and place it via `buildTemplatePlacement`,
  *    grouped so it moves/deletes as one unit.
@@ -160,6 +164,63 @@ export class NewsletterAssembler {
       }
     }
     return assembled;
+  }
+
+  /**
+   * Same content→positioned-elements pipeline as {@link assemble}, for the
+   * single-prompt `Generate` flow (`GenerateMenu`) instead of a whole
+   * document: one caller-supplied target page, no overflow-driven pagination
+   * (there's no "next page" to spill onto here — a prompt-generated page that
+   * overflows just gets flagged by the lint pass, like any other overlong
+   * block would). Reuses `buildBlock`/`buildPageDecoration`/`verifyAndRepair`
+   * so a prompt-generated infographic gets the exact same real-template
+   * matching and lint-repair a document-generated one does — the backend
+   * only ever proposes content, never a template id or pixel position, same
+   * grounding contract either flow.
+   */
+  assembleOntoPage(
+    blocks: readonly LlmBlock[],
+    theme: DesignTheme,
+    target: { id: string; width: number; height: number },
+  ): { elements: CanvasElement[]; groups: GroupElement[]; warnings: string[] } {
+    const usedTemplateIds = new Set<string>();
+    const contentWidth = Math.max(target.width - PAGE_MARGIN * 2, 1);
+    const elements: CanvasElement[] = buildPageDecoration(theme, target.width, target.height);
+    const groups: GroupElement[] = [];
+    let cursorY = PAGE_MARGIN;
+    let accentIndex = 0;
+
+    for (const block of blocks) {
+      const built = this.buildBlock(block, {
+        origin: { x: PAGE_MARGIN, y: cursorY },
+        contentWidth,
+        theme,
+        accentIndex,
+        usedTemplateIds,
+      });
+      if (!built) {
+        continue;
+      }
+      elements.push(...built.elements);
+      if (built.group) {
+        groups.push(built.group);
+      }
+      cursorY += built.height + GAP;
+      if (built.usesAccent) {
+        accentIndex += 1;
+      }
+    }
+
+    const page: Page = {
+      id: target.id,
+      width: target.width,
+      height: target.height,
+      background: PAGE_BACKGROUND,
+      elements,
+      groups,
+    };
+    const warnings = this.verifyAndRepair(page);
+    return { elements: page.elements, groups: page.groups, warnings };
   }
 
   private assembleOnePage(
@@ -573,6 +634,15 @@ function mapBlockToContent(templateId: string, block: LlmBlock): unknown {
       return {
         tiers: dataPoints.map((point) => ({ title: point.label, body: point.value })),
       } satisfies PyramidContent;
+    case 'template-venn-diagram': {
+      const [leftPoint, rightPoint] = dataPoints;
+      return {
+        left: leftPoint ? { title: leftPoint.label, body: leftPoint.value } : undefined,
+        right: rightPoint ? { title: rightPoint.label, body: rightPoint.value } : undefined,
+        centerLabel: block.purpose || undefined,
+        caption: block.text || undefined,
+      } satisfies VennDiagramContent;
+    }
     case 'template-stat-spotlight': {
       const [point] = dataPoints;
       return {

@@ -2,11 +2,13 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signa
 
 import { AgentClient } from '../../../canvas/agent/agent-client';
 import { AddElementsCommand } from '../../../canvas/commands/add-elements.command';
+import { AddGroupCommand } from '../../../canvas/commands/add-group.command';
 import { ApplyThemeCommand } from '../../../canvas/commands/apply-theme.command';
 import { CommandBus } from '../../../canvas/commands/command-bus.service';
 import { CompositeCommand } from '../../../canvas/commands/composite.command';
 import { pickNextTheme } from '../../../canvas/data/design-themes';
 import { Command } from '../../../canvas/models/commands.model';
+import { NewsletterAssembler } from '../../../canvas/services/newsletter-assembler.service';
 import { CanvasStore } from '../../../canvas/state/canvas.store';
 import { EditorSettingsStore } from '../../../canvas/state/editor-settings.store';
 import { IconButton } from '../../../shared/components/icon-button/icon-button';
@@ -19,9 +21,13 @@ const SUMMARY_FLASH_MS = 1600;
  * Toolbar control that turns a prompt into a starter layout on a chosen page —
  * the Generate panel from Track E1. Structured exactly like `ExportMenu`: a
  * toggle button revealing a small flyout, no shared popover primitive to
- * reach for. The actual generation is delegated to `AgentClient` — the real
- * Ollama-backed `HttpAgentClient` (Track E3) by default; nothing here had to
- * change when it replaced the mock behind that same interface.
+ * reach for. `AgentClient` (the real Ollama-backed `HttpAgentClient`, Track E3,
+ * by default) only ever proposes content blocks; `NewsletterAssembler` --
+ * the same service the document-upload flow uses -- is what matches an
+ * `infographic` block to a real pre-built template and positions everything,
+ * so a prompt-generated page gets the exact same asset-grounded design
+ * quality a document-generated one does, never a freeform layout the model
+ * invented itself.
  */
 @Component({
   selector: 'app-generate-menu',
@@ -36,6 +42,7 @@ const SUMMARY_FLASH_MS = 1600;
 })
 export class GenerateMenu {
   private readonly agentClient = inject(AgentClient);
+  private readonly assembler = inject(NewsletterAssembler);
   private readonly canvas = inject(CanvasStore);
   private readonly commands = inject(CommandBus);
   private readonly host = inject(ElementRef<HTMLElement>);
@@ -113,15 +120,33 @@ export class GenerateMenu {
           if (page.id !== this.canvas.activePage().id) {
             this.canvas.setActivePage(page.id);
           }
+          // `AgentClient.generate` only ever proposes content -- the same
+          // `NewsletterAssembler` the document-upload flow uses matches any
+          // `infographic` block to a real pre-built template and positions
+          // everything, so this page gets the same asset-grounded design
+          // quality either flow produces.
+          const built = this.assembler.assembleOntoPage(result.blocks, nextTheme, {
+            id: page.id,
+            width: page.width,
+            height: page.height,
+          });
+
           const steps: Command[] = [];
           if (nextTheme.id !== this.canvas.theme().id) {
             steps.push(new ApplyThemeCommand(this.canvas, nextTheme));
           }
-          steps.push(new AddElementsCommand(this.canvas, result.elements));
-          this.commands.dispatch(steps.length > 1 ? new CompositeCommand(steps, 'Generate design') : steps[0]);
+          if (built.elements.length > 0) {
+            steps.push(new AddElementsCommand(this.canvas, built.elements));
+          }
+          for (const group of built.groups) {
+            steps.push(new AddGroupCommand(this.canvas, group));
+          }
+          if (steps.length > 0) {
+            this.commands.dispatch(steps.length > 1 ? new CompositeCommand(steps, 'Generate design') : steps[0]);
+          }
           this.busy.set(false);
           this.prompt.set('');
-          this.flashSummary(result.summary);
+          this.flashSummary(summaryFor(result.summary, [...result.warnings, ...built.warnings]));
           this.close();
         },
         error: () => {
@@ -136,4 +161,15 @@ export class GenerateMenu {
     clearTimeout(this.summaryFlashTimer);
     this.summaryFlashTimer = setTimeout(() => this.summary.set(null), SUMMARY_FLASH_MS);
   }
+}
+
+/** Appends the first content/design guardrail finding, if any -- same
+ * "name the concrete finding, not just a count" convention `GenerateDocumentMenu`'s
+ * own `summaryFor` uses, scaled down to one page instead of a whole document. */
+function summaryFor(summary: string, warnings: readonly string[]): string {
+  if (warnings.length === 0) {
+    return summary;
+  }
+  const more = warnings.length > 1 ? ` (+${warnings.length - 1} more)` : '';
+  return `${summary} — ${warnings[0]}${more}`;
 }
