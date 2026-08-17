@@ -49,6 +49,16 @@ export interface BaseElement {
    * content-overlapping decorative shape as an error.
    */
   decorative?: boolean;
+  /**
+   * Renders with a soft drop shadow — and, on a `shape`, a light-to-dark
+   * gradient computed from `fill` in place of a flat colour — instead of a
+   * plain flat fill. Set by the built-in infographic templates
+   * (`buildTemplatePlacement`) for a raised, dimensional look; hand-drawn
+   * elements from the toolbar leave it unset and stay flat. Purely a
+   * Konva-side paint hint: `fill`/`src` stay the source of truth for theme
+   * recolouring and for consumers that read the model directly (PPTX export).
+   */
+  depth?: boolean;
 }
 
 /**

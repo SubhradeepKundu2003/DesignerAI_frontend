@@ -86,30 +86,40 @@ export const FOREST_MONO: DesignTheme = {
 };
 
 /**
- * TCS-inspired corporate theme — deep navy on white with a restrained accent
- * cycle, matching the dark-navy-and-blue register of TCS's own brand pages
- * rather than any single verified hex from an internal brand book. Meant for
- * corporate newsletter pages: sober ink/navy for headings, a cyan accent for
- * highlights, plus two muted secondary accents so 4-up stat/card templates
- * still have colour variety without drifting off-brand.
+ * TCS Corporate theme — verified against "TCS visual identity guidelines"
+ * (Feb 2026), Colour section (pp. 23-32), not guessed. Black and white are
+ * the foundation ("think in black and white, then add colour" — p. 24), and
+ * every accent below is one of the guideline's own primary/secondary/
+ * tertiary hexes or a tonal step from its expanded data-viz palette (p. 27).
+ *
+ * TCS yellow is deliberately not one of the four `accents` here even though
+ * it's a brand-unifying colour: several templates paint `accent.solid`
+ * straight onto a white panel as large text (see `stat-badge.template.ts`),
+ * and the guideline's own accessibility chart (p. 26) flags yellow-on-white
+ * as failing contrast — measured ~1.8:1, nowhere near the 3:1 floor for
+ * large text. Yellow's documented brand role is a *background* behind black
+ * text (a CTA, an emphasis block), which this theme model has no slot for;
+ * using it as a generic foreground accent would make text unreadable and
+ * trip the app's own contrast linter. TCS green is excluded too — the
+ * guideline reserves it exclusively for sustainability communications (p. 28).
  */
 export const TCS_CORPORATE: DesignTheme = {
   id: 'theme-tcs-corporate',
   name: 'TCS Corporate',
   colors: {
-    ink: '#051c2c',
-    muted: '#5b6b78',
+    ink: '#000000',
+    muted: '#333333',
     surface: '#ffffff',
-    border: '#dce3e8',
+    border: '#d2d2d2',
     accents: [
-      { name: 'TCS Navy', solid: '#04233b', tint: '#e7ecf1' },
-      { name: 'TCS Blue', solid: '#0070ad', tint: '#e5f2fa' },
-      { name: 'Cyan', solid: '#00a3e0', tint: '#e3f6fd' },
-      { name: 'Slate', solid: '#4d6070', tint: '#eef1f4' },
+      { name: 'TCS Blue', solid: '#4e84c4', tint: '#d3e1f0' },
+      { name: 'TCS Blue Deep', solid: '#3e6a9d', tint: '#a9c2e2' },
+      { name: 'TCS Orange', solid: '#f15a29', tint: '#fde6df' },
+      { name: 'TCS Red', solid: '#ef4135', tint: '#fde3e1' },
     ],
   },
-  fonts: { heading: 'Georgia', body: 'Inter' },
-  radius: 6,
+  fonts: { heading: 'Calibri', body: 'Calibri' },
+  radius: 8,
   spacing: 20,
 };
 

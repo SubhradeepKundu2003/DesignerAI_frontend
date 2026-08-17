@@ -1,6 +1,7 @@
 import Konva from 'konva/lib/Core';
 
 import { ShapeElement } from '../models/canvas-element.model';
+import { applyDepthShadow, depthGradientAttrs } from '../utils/depth-style.util';
 import { ElementRenderer } from './element-renderer';
 
 /**
@@ -24,6 +25,7 @@ export class ShapeRenderer implements ElementRenderer<ShapeElement, Konva.Shape>
   }
 
   update(node: Konva.Shape, element: ShapeElement): void {
+    const depth = element.depth ?? false;
     node.setAttrs({
       width: element.width,
       height: element.height,
@@ -31,12 +33,15 @@ export class ShapeRenderer implements ElementRenderer<ShapeElement, Konva.Shape>
       arcOrientation: element.arcOrientation,
       cornerRadius: element.cornerRadius,
       fill: element.fill,
+      fillPriority: 'color',
       stroke: element.stroke,
       strokeWidth: element.strokeWidth,
       // A zero-width stroke would still cost Konva a stroke pass, and would
       // make `hasStroke()` true for the transformer's bounding box.
       strokeEnabled: element.strokeWidth > 0,
+      ...(depth ? depthGradientAttrs(element.fill, element.width, element.height) : {}),
     });
+    applyDepthShadow(node, depth);
   }
 }
 

@@ -42,7 +42,7 @@ export class MarqueeRenderer implements OnDestroy {
     }
 
     if (!this.fill || !this.border) {
-      const accent = readToken('--color-selection', '#4f46e5');
+      const accent = readToken('--color-selection', '#4e84c4');
       this.fill = new Rect({
         fill: accent,
         opacity: 0.1,

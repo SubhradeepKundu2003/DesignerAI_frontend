@@ -1,37 +1,100 @@
 // Design tokens.
 // Exposed as CSS custom properties so runtime theming stays possible and the
 // Konva renderers can read the same values via getComputedStyle when needed.
+//
+// Palette sourced from "TCS visual identity guidelines" (Feb 2026), Colour
+// section (pp. 23-32): primary black/white, secondary TCS blue #4E84C4 and
+// TCS yellow #FBB034 as the brand's "unifying thread", tertiary red/orange
+// used sparingly, and the Cool Gray scale for the neutral ramp. TCS green is
+// reserved by the guideline exclusively for sustainability communications,
+// so it is deliberately not wired into general UI chrome here.
 
 :root {
-  // Surfaces
-  --color-workspace: #e9eaee;
-  --color-surface: #ffffff;
-  --color-surface-raised: #ffffff;
-  --color-surface-sunken: #f6f7f9;
-  --color-surface-hover: #f2f3f5;
-  --color-surface-active: #e9eaee;
+  // --- TCS brand primitives (guideline-verified hex, do not hand-edit) ---
+  --tcs-black: #000000;
+  --tcs-white: #ffffff;
 
-  // Borders
-  --color-border: #e2e4e9;
-  --color-border-strong: #cbcfd6;
+  --tcs-blue: #4e84c4; // TCS blue, Pantone 2727 C
+  --tcs-blue-dark: #3e6a9d; // Pantone 653 C — tonal step, data-viz palette
+  --tcs-blue-light: #7ba3d3; // Pantone 659 C
+  --tcs-blue-lighter: #a9c2e2; // Pantone 2717 C
+  --tcs-blue-lightest: #d3e1f0; // Pantone 2707 C
 
-  // Text
-  --color-text: #1c1f24;
-  --color-text-muted: #6b7280;
-  --color-text-subtle: #9aa1ab;
-  --color-text-inverse: #ffffff;
+  --tcs-yellow: #fbb034; // TCS yellow, Pantone 137 C
+  --tcs-yellow-dark: #d89225; // Pantone 131 C
+  --tcs-yellow-light: #fdc46e; // Pantone 1355 C
+  --tcs-yellow-lighter: #fed9a1; // Pantone 7507 C
+  --tcs-yellow-lightest: #ffecd0; // Pantone 7509 C
 
-  // Accent
-  --color-accent: #4f46e5;
-  --color-accent-hover: #4338ca;
-  --color-accent-soft: #eef2ff;
-  --color-danger: #dc2626;
+  --tcs-red: #ef4135; // TCS red, Pantone 032 C — alerts/errors only
+  --tcs-orange: #f15a29; // TCS orange, Pantone 173 C — warnings/emphasis only
+  --tcs-green: #54b948; // TCS green, Pantone 361 C — sustainability comms only
 
-  // Canvas chrome
-  --color-page: #ffffff;
-  --color-grid-line: #e6e8ec;
-  --color-margin-guide: #b9c0ff;
-  --color-selection: #4f46e5;
+  // Cool Gray scale — exact guideline stops (20/40/60/80% black tints).
+  --tcs-gray-20: #d2d2d2; // Cool Gray 2 C
+  --tcs-gray-40: #aaaaaa; // Cool Gray 6 C
+  --tcs-gray-60: #828282; // Cool Gray 8 C
+  --tcs-gray-80: #333333; // Cool Gray 11 C
+
+  // Sub-20% neutrals for UI-only surfaces (hover/sunken/pasteboard) that the
+  // guideline doesn't itemise — interpolated as black-over-white tints,
+  // following the same "10-20% opacity for subtle backgrounds" rule it gives
+  // for the colour spectrum (p. 25), just applied to black instead of hue.
+  --tcs-gray-04: #f5f5f5;
+  --tcs-gray-06: #f0f0f0;
+  --tcs-gray-08: #ebebeb;
+  --tcs-gray-10: #e6e6e6;
+
+  // --- Surfaces ---
+  --color-workspace: var(--tcs-gray-08);
+  --color-surface: var(--tcs-white);
+  --color-surface-raised: var(--tcs-white);
+  --color-surface-sunken: var(--tcs-gray-04);
+  --color-surface-hover: var(--tcs-gray-06);
+  --color-surface-active: var(--tcs-gray-10);
+
+  // --- Borders ---
+  --color-border: var(--tcs-gray-20);
+  --color-border-strong: var(--tcs-gray-40);
+
+  // --- Text ---
+  // Black is the preferred, max-contrast primary per the guideline's colour
+  // principles (p. 24: "think in black and white, then add colour").
+  --color-text: var(--tcs-black);
+  --color-text-muted: var(--tcs-gray-80); // AA-safe (~12.6:1 on white)
+  --color-text-subtle: var(--tcs-gray-60); // labels/placeholders, not body copy
+  --color-text-inverse: var(--tcs-white);
+
+  // --- Accent (TCS blue is the app's interactive colour) ---
+  --color-accent: var(--tcs-blue);
+  --color-accent-hover: var(--tcs-blue-dark);
+  --color-accent-active: var(--tcs-blue-dark);
+  --color-accent-soft: var(--tcs-blue-lightest);
+
+  // Semantic states, kept inside the approved palette: red for errors, orange
+  // for warnings ("TCS red or TCS orange + black/white — effective for
+  // emphasis or alerts", p. 26). Green is intentionally unused here.
+  --color-danger: var(--tcs-red);
+  --color-danger-soft: #fde3e1; // red at ~15% opacity over white
+  --color-warning: var(--tcs-orange);
+  --color-warning-soft: #fde6df; // orange at ~15% opacity over white
+
+  // Approved digital-only gradient: TCS blue to black, linear, 50/50 midpoint
+  // (p. 29). Reserve for large, sparing hero/marketing moments — never body
+  // chrome, never print/export surfaces.
+  --gradient-brand: linear-gradient(180deg, var(--tcs-blue) 0%, var(--tcs-black) 100%);
+
+  // --- Canvas chrome ---
+  --color-page: var(--tcs-white);
+  --color-grid-line: var(--tcs-gray-10);
+  --color-margin-guide: var(--tcs-blue-lighter);
+  --color-selection: var(--tcs-blue);
+  // Snap guides are a transient editing affordance, never part of exported or
+  // branded output, so they sit outside the guideline's scope. Kept as a
+  // high-visibility magenta (the cross-app convention for smart guides in
+  // Figma/Illustrator/InDesign/PowerPoint) rather than forced into the brand
+  // hue set — TCS yellow on a white page is ~1.8:1 contrast, and the
+  // guideline itself calls out "yellow on white" as a pairing to avoid (p. 26).
   --color-snap-guide: #ff4d80;
 
   // Spacing scale
@@ -49,9 +112,15 @@
   --radius-lg: 10px;
   --radius-full: 999px;
 
-  // Shadows
-  --shadow-panel: 0 1px 2px rgb(16 24 40 / 6%);
-  --shadow-popover: 0 8px 24px rgb(16 24 40 / 12%);
+  // Shadows — layered (tight contact shadow + soft ambient falloff) for
+  // actual depth rather than a flat single blur. Built from black, per the
+  // guideline's "black offers maximum contrast" principle and its 10-20%
+  // opacity guidance for subtle overlays.
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 6%);
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 6%), 0 1px 1px rgb(0 0 0 / 4%);
+  --shadow-popover: 0 12px 32px rgb(0 0 0 / 16%), 0 4px 12px rgb(0 0 0 / 8%);
+  --shadow-lifted: 0 20px 48px rgb(0 0 0 / 20%), 0 6px 16px rgb(0 0 0 / 10%);
+  --shadow-focus: 0 0 0 3px rgb(78 132 196 / 35%);
 
   // Typography
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', arial, sans-serif;

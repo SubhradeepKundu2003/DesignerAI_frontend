@@ -1,6 +1,7 @@
 import { Image as KonvaImage } from 'konva/lib/shapes/Image';
 
 import { ImageElement } from '../models/canvas-element.model';
+import { applyDepthShadow } from '../utils/depth-style.util';
 import { ElementRenderer } from './element-renderer';
 
 /** Konva attribute holding the source the node's bitmap was decoded from. */
@@ -28,6 +29,7 @@ export class ImageRenderer implements ElementRenderer<ImageElement, KonvaImage> 
     // what this renderer may not have yet.
     node.width(element.width);
     node.height(element.height);
+    applyDepthShadow(node, element.depth ?? false);
     this.applySource(node, element.src);
   }
 

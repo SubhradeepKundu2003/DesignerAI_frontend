@@ -27,7 +27,7 @@ export function buildTemplatePlacement(
   content?: unknown,
   theme?: DesignTheme,
 ): TemplatePlacement {
-  const built = template.build(origin, content, theme);
+  const built = template.build(origin, content, theme).map(withDepth);
   if (built.length < 2) {
     return { elements: built };
   }
@@ -44,4 +44,18 @@ export function buildTemplatePlacement(
     childIds: elements.map((element) => element.id),
   };
   return { elements, group };
+}
+
+/**
+ * Stamps `depth: true` on every shape/icon/image a template produces — once,
+ * centrally — so the whole infographic library renders with a raised,
+ * gradient-shaded look instead of flat colour, without hand-editing each of
+ * the ~25 template builder files. Elements from the toolbar (`ElementFactory`)
+ * never pass through here, so hand-drawn shapes stay flat.
+ */
+function withDepth(element: CanvasElement): CanvasElement {
+  if (element.type === 'shape' || element.type === 'icon' || element.type === 'image') {
+    return { ...element, depth: true };
+  }
+  return element;
 }

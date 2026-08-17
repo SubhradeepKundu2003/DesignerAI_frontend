@@ -26,7 +26,7 @@ export class GridRenderer implements OnDestroy {
     this.detach();
 
     this.grid = new Konva.Shape({
-      stroke: readToken('--color-grid-line', '#e6e8ec'),
+      stroke: readToken('--color-grid-line', '#e6e6e6'),
       strokeWidth: 1,
       // A grid line stays a hairline at any zoom; Konva would otherwise scale
       // it thicker as the stage scale grows.

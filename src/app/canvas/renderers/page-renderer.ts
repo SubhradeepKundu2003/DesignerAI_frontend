@@ -15,12 +15,18 @@ export interface PageView {
   marginsVisible: boolean;
 }
 
-/** Page lift, in screen px — divided by the zoom before it reaches Konva. */
+/**
+ * Page lift, in screen px — divided by the zoom before it reaches Konva.
+ * Black (not a tinted navy) per the guideline's "black offers maximum
+ * contrast" colour principle; blur/offset widened and opacity lightened
+ * versus a tight shadow so the page reads as gently lifted rather than
+ * pasted on with a hard edge.
+ */
 const SHADOW = {
-  color: '#101828',
-  blur: 24,
-  offsetY: 6,
-  opacity: 0.18,
+  color: '#000000',
+  blur: 32,
+  offsetY: 8,
+  opacity: 0.16,
 } as const;
 
 /**
@@ -48,7 +54,7 @@ export class PageRenderer implements OnDestroy {
     });
 
     this.safeArea = new Rect({
-      stroke: readToken('--color-margin-guide', '#b9c0ff'),
+      stroke: readToken('--color-margin-guide', '#a9c2e2'),
       strokeWidth: 1,
       // Guides are chrome, not artwork: keep them hairline-thin at any zoom.
       // Konva strokes these with the transform reset, so the dash is screen px too.

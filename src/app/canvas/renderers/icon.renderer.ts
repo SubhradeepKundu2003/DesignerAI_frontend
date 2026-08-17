@@ -2,6 +2,7 @@ import Konva from 'konva/lib/Core';
 
 import { IconElement } from '../models/canvas-element.model';
 import { ICON_GLYPHS, IconGlyphPart, IconName } from '../../shared/icons/icon-registry';
+import { applyDepthShadow } from '../utils/depth-style.util';
 import { ElementRenderer } from './element-renderer';
 
 const VIEWBOX = 24;
@@ -32,6 +33,7 @@ export class IconRenderer implements ElementRenderer<IconElement, Konva.Shape> {
       fill: element.fill,
       stroke: element.fill,
     });
+    applyDepthShadow(node, element.depth ?? false);
   }
 }
 

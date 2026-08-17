@@ -56,7 +56,7 @@ export class SelectionRenderer implements OnDestroy {
   attach(layer: Konva.Layer): void {
     this.detach();
 
-    const accent = readToken('--color-selection', '#4f46e5');
+    const accent = readToken('--color-selection', '#4e84c4');
     this.transformer = new Transformer({
       anchorFill: readToken('--color-surface', '#ffffff'),
       anchorStroke: accent,
