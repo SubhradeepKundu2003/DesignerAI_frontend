@@ -4,10 +4,10 @@ import { IconName } from './icon-svg';
 import { ACCENT_CYCLE, BORDER, accentRef } from './palette';
 import { circle, icon, mergeFixedList, rect, text, translate } from './template-kit';
 
-const CARD_W = 230;
+const CARD_W = 166;
 const PHOTO_H = 170;
 const FOOTER_H = 190;
-const GAP = 20;
+const GAP = 10;
 const BADGE_D = 76;
 
 const WIDTH = CARD_W * 4 + GAP * 3;

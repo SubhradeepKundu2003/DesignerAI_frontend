@@ -85,7 +85,7 @@ const THUMBNAIL =
   `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="16" fill="#ffffff" stroke="${BORDER}"/>` +
   `<circle cx="${WIDTH - 40}" cy="0" r="40" fill="${ACCENT.tint}"/>` +
   `<circle cx="${PADDING + BADGE_D / 2}" cy="${PADDING + BADGE_D / 2}" r="${BADGE_D / 2}" fill="${ACCENT.tint}"/>` +
-  `<text x="${PADDING}" y="150" font-family="Inter" font-size="44" font-weight="700" fill="${ACCENT.solid}">${STAT}</text>` +
+  `<text x="${PADDING}" y="150" font-family="Houschka Rounded Alt" font-size="44" font-weight="700" fill="${ACCENT.solid}">${STAT}</text>` +
   `</svg>`;
 
 export const STAT_BADGE_TEMPLATE: InfographicTemplate = {

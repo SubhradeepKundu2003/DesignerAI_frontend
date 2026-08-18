@@ -59,6 +59,13 @@ export interface BaseElement {
    * recolouring and for consumers that read the model directly (PPTX export).
    */
   depth?: boolean;
+  /**
+   * Marks an element as belonging to TCS/TATA branded mode (`utils/branding.util.ts`),
+   * so `SetBrandedModeCommand` can find and remove exactly what it added when
+   * the mode is switched off, without guessing from names or positions. Never
+   * read by renderers — purely a bookkeeping tag, same spirit as `decorative`.
+   */
+  brandRole?: 'logo' | 'background-pattern';
 }
 
 /**

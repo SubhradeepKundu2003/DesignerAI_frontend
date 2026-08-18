@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { DocumentGenerateResult, LlmBlock } from '../agent/document-generate.model';
+import { DocumentGenerateResult, InfographicShape, LlmBlock } from '../agent/document-generate.model';
 import { DEFAULT_THEME } from '../data/design-themes';
 import { CanvasElement, isTextElement } from '../models/canvas-element.model';
 import { PAGE_MARGIN, PAGE_SIZE } from '../models/editor-config';
@@ -442,5 +442,78 @@ describe('NewsletterAssembler', () => {
       | undefined;
     expect(quoteTextElement?.height).toBeGreaterThan(88);
     expect(assembled.warnings.some((warning) => warning.includes('Quote text'))).toBe(false);
+  });
+
+  it('should keep every parameterized infographic template free of out-of-bounds/overlap issues at the longest content its shape budget allows', () => {
+    // Mirrors `guardrails.py`'s `_SHAPE_FIELD_CHAR_LIMIT`/`_QUOTE_CHAR_LIMIT` --
+    // the longest label/value/quote the backend will ever let through onto
+    // this pipeline, not an adversarial excess past it (see plan.md Part 3,
+    // B5). `InfographicMatcherService.match` walks a shape's pool in id order
+    // and skips ids already in `usedTemplateIds`, so feeding one block per
+    // pool entry inside a single `assemble()` call exercises every real
+    // parameterized template at once.
+    const DATA_POINT_COUNT: Partial<Record<InfographicShape, number>> = {
+      stat: 1,
+      venn: 2,
+      stat_row: 3,
+      kpi: 4,
+      bar_chart: 4,
+      bullet_list: 4,
+      timeline: 5,
+      grid: 6,
+    };
+    const CHAR_BUDGET: Partial<Record<InfographicShape, { label: number; value: number }>> = {
+      stat: { label: 28, value: 12 },
+      stat_row: { label: 20, value: 10 },
+      kpi: { label: 22, value: 10 },
+      bar_chart: { label: 10, value: 8 },
+      timeline: { label: 40, value: 110 },
+      bullet_list: { label: 36, value: 110 },
+      venn: { label: 20, value: 60 },
+      grid: { label: 18, value: 50 },
+    };
+    const filler = 'Lorem ipsum dolor sit amet consectetur adipiscing elit sed '.repeat(3);
+    const maxString = (length: number) => filler.slice(0, length);
+    // `stat`/`stat_row`/`kpi`/`bar_chart` are `_NUMERIC_SHAPES` on the backend
+    // (`guardrails.py`) -- a real value always has a leading digit, and
+    // `bar-chart.template.ts` divides by the max of these, so an all-zero
+    // set (what a digit-less filler would parse to) produces a `0/0` NaN
+    // bar height. Numeric shapes get a real-looking `"42% " + filler` value
+    // instead of the plain filler every other shape's `value` uses.
+    const NUMERIC_SHAPES = new Set<InfographicShape>(['stat', 'stat_row', 'kpi', 'bar_chart']);
+    const maxValue = (shape: InfographicShape, length: number, index: number) =>
+      NUMERIC_SHAPES.has(shape) ? `${10 + index * 7}% ${filler}`.slice(0, length) : maxString(length);
+
+    const blocks: LlmBlock[] = [];
+    (Object.keys(SHAPE_TEMPLATE_IDS) as InfographicShape[]).forEach((shape) => {
+      const pool = SHAPE_TEMPLATE_IDS[shape];
+      if (shape === 'quote') {
+        pool.forEach(() => blocks.push(infographic({ shape, quote: maxString(220) })));
+        return;
+      }
+      const count = DATA_POINT_COUNT[shape];
+      const budget = CHAR_BUDGET[shape];
+      if (!count || !budget) {
+        return;
+      }
+      pool.forEach(() => {
+        blocks.push(
+          infographic({
+            shape,
+            dataPoints: Array.from({ length: count }, (_, i) => ({
+              label: maxString(budget.label),
+              value: maxValue(shape, budget.value, i),
+            })),
+          }),
+        );
+      });
+    });
+
+    const pages = assembler.assemble({ pages: [{ blocks, warnings: [] }] }, DEFAULT_THEME);
+
+    const geometryWarnings = pages.flatMap((assembled) =>
+      assembled.warnings.filter((warning) => warning.includes('extends outside the page') || warning.includes('overlaps')),
+    );
+    expect(geometryWarnings).toEqual([]);
   });
 });

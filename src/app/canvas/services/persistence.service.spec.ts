@@ -82,13 +82,60 @@ describe('PersistenceService', () => {
     expect(canvas.document()).toEqual(cached);
   });
 
-  it('should leave the document untouched when opening fails with nothing cached', () => {
-    const before = canvas.document();
+  it('should reset to a blank document when opening fails with nothing cached', () => {
+    canvas.insertElement(shapeElement());
+    expect(canvas.elementCount()).toBe(1);
 
     persistence.openProject(PROJECT_ID);
     http.expectOne(documentUrl()).error(new ProgressEvent('offline'));
 
-    expect(canvas.document()).toEqual(before);
+    expect(canvas.document().pages).toHaveLength(1);
+    expect(canvas.elementCount()).toBe(0);
+    expect(canvas.groups()).toHaveLength(0);
+  });
+
+  it('should reset the previous project off screen the instant a new one opens, before its load settles', () => {
+    persistence.openProject(PROJECT_ID);
+    http.expectOne(documentUrl()).flush(blankDocument());
+    canvas.insertElement(shapeElement());
+    expect(canvas.elementCount()).toBe(1);
+
+    persistence.openProject('project-2');
+
+    expect(canvas.elementCount()).toBe(0);
+    http.expectOne(documentUrl('project-2')).error(new ProgressEvent('offline'));
+  });
+
+  it('should not let a pending autosave from the previous project land on the newly opened one', async () => {
+    persistence.openProject(PROJECT_ID);
+    http.expectOne(documentUrl()).flush(blankDocument());
+
+    canvas.insertElement(shapeElement());
+    await flushEffects();
+    vi.advanceTimersByTime(1000);
+
+    persistence.openProject('project-2');
+    http.expectOne(documentUrl('project-2')).error(new ProgressEvent('offline'));
+
+    vi.advanceTimersByTime(1000);
+    await flushEffects();
+
+    http.expectNone(documentUrl(PROJECT_ID));
+    http.expectNone(documentUrl('project-2'));
+  });
+
+  it('should not let the placeholder blank document overwrite a project that is still loading', async () => {
+    persistence.openProject(PROJECT_ID);
+    // The GET below is deliberately left unflushed -- the backend is slow to respond.
+
+    await flushEffects();
+    vi.advanceTimersByTime(2000);
+    await flushEffects();
+
+    const puts = http.match((req) => req.url === documentUrl() && req.method === 'PUT');
+    expect(puts).toHaveLength(0);
+
+    http.expectOne(documentUrl()).flush(blankDocument());
   });
 
   it('should write the document to the backend and flag hasSave on manual save', async () => {

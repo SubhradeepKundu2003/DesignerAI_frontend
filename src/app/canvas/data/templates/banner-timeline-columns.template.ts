@@ -4,11 +4,11 @@ import { IconName } from './icon-svg';
 import { ACCENT_CYCLE, INK, MUTED, accentRef } from './palette';
 import { circle, connector, icon, mergeFixedList, rect, text, translate } from './template-kit';
 
-const COL_W = 340;
+const COL_W = 315;
 const ICON_SEG_W = 90;
 const BANNER_H = 50;
 const ROW_H = 92;
-const GAP = 60;
+const GAP = 30;
 const RIGHT_COL_X = COL_W + GAP;
 const SPINE_X = RIGHT_COL_X + COL_W + 26;
 

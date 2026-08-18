@@ -56,6 +56,9 @@ export class CanvasStore {
   /** The project's active theme, defaulting for documents saved before theming existed. */
   readonly theme = computed<DesignTheme>(() => this.state().theme ?? DEFAULT_THEME);
 
+  /** TCS/TATA branded mode (`SetBrandedModeCommand`), defaulting to off for documents saved before it existed. */
+  readonly branded = computed<boolean>(() => this.state().branded ?? false);
+
   readonly pages = computed<readonly Page[]>(() => this.state().pages);
 
   readonly pageCount = computed(() => this.pages().length);
@@ -129,7 +132,16 @@ export class CanvasStore {
 
   /** Inserts `element` onto the *active* page at `index` (top of stack when omitted). */
   insertElement(element: CanvasElement, index?: number): void {
-    this.updatePageElements(this.activePage().id, (elements) => {
+    this.insertElementOnPage(this.activePage().id, element, index);
+  }
+
+  /**
+   * Same as {@link insertElement}, for an arbitrary page rather than always
+   * the active one — needed by `SetBrandedModeCommand`, which brands every
+   * page in the document in one step, not just whichever one is on screen.
+   */
+  insertElementOnPage(pageId: string, element: CanvasElement, index?: number): void {
+    this.updatePageElements(pageId, (elements) => {
       const at = clampIndex(index ?? elements.length, elements.length);
       const next = [...elements];
       next.splice(at, 0, element);
@@ -355,6 +367,11 @@ export class CanvasStore {
   /** Sets the project's active theme. Commands only; see {@link ApplyThemeCommand}. */
   setTheme(theme: DesignTheme | undefined): void {
     this.state.update((document) => ({ ...document, theme }));
+  }
+
+  /** Sets TCS/TATA branded mode. Commands only; see {@link SetBrandedModeCommand}. */
+  setBranded(branded: boolean): void {
+    this.state.update((document) => ({ ...document, branded }));
   }
 
   // --- Page mutators. Commands only. ----------------------------------------

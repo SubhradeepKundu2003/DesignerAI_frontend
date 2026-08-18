@@ -351,6 +351,25 @@ describe('CanvasInteractions', () => {
       expect(node.position()).toEqual({ x: 111, y: 129 });
     });
 
+    it('should carry the snap adjustment over to the rest of a dragged group', () => {
+      // Konva's real Transformer only mirrors the pointer-driven node's
+      // movement onto every other attached node once, on the first dragmove
+      // after dragstart (see `_proxyDrag` in `Transformer.js`) — it does not
+      // keep mirroring on every tick. B's position below is left for that
+      // real, live Transformer to move on its own; this only sets A's,
+      // exactly as a native drag would.
+      const a = place(shapeElement({ x: 10, y: 20, width: 50, height: 50 }));
+      const b = place(shapeElement({ x: 110, y: 120, width: 50, height: 50 }));
+      transformer.nodes([a as Konva.Shape, b as Konva.Shape]);
+
+      a.fire('dragstart', { evt: pointerEvent() }, true);
+      a.position({ x: 111, y: 129 });
+      a.fire('dragmove', { evt: pointerEvent() }, true);
+
+      expect(a.position()).toEqual({ x: 120, y: 120 });
+      expect(b.position()).toEqual({ x: 220, y: 220 });
+    });
+
     it('should clear the guides once the drag ends', () => {
       place(shapeElement({ x: 200, y: 0, width: 100, height: 40 }));
       const node = place(shapeElement({ x: 10, y: 300, width: 50, height: 50 }));

@@ -1,0 +1,50 @@
+// Self-hosted brand font used by the "Houschka Brand" design theme
+// (`canvas/data/design-themes.ts`) — files copied from ContentGenerator's
+// `src/main/resources/fonts` so this repo doesn't depend on that project.
+@font-face {
+  font-family: 'Houschka Rounded Alt';
+  src: url('/assets/fonts/houschka-rounded-alt/HouschkaRoundedAlt-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Houschka Rounded Alt';
+  src: url('/assets/fonts/houschka-rounded-alt/HouschkaRoundedAlt-LightItalic.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Houschka Rounded Alt';
+  src: url('/assets/fonts/houschka-rounded-alt/HouschkaRoundedAlt-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Houschka Rounded Alt';
+  src: url('/assets/fonts/houschka-rounded-alt/HouschkaRoundedAlt-MediumItalic.ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Houschka Rounded Alt';
+  src: url('/assets/fonts/houschka-rounded-alt/HouschkaRoundedAlt-DemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Houschka Rounded Alt';
+  src: url('/assets/fonts/houschka-rounded-alt/HouschkaRoundedAlt-DemiBoldItalic.ttf') format('truetype');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}

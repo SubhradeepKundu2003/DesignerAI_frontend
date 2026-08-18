@@ -6,7 +6,8 @@ import { AddGroupCommand } from '../../../canvas/commands/add-group.command';
 import { ApplyThemeCommand } from '../../../canvas/commands/apply-theme.command';
 import { CommandBus } from '../../../canvas/commands/command-bus.service';
 import { CompositeCommand } from '../../../canvas/commands/composite.command';
-import { pickNextTheme } from '../../../canvas/data/design-themes';
+import { SetPageBackgroundCommand } from '../../../canvas/commands/set-page-background.command';
+import { TCS_CORPORATE, pickNextTheme } from '../../../canvas/data/design-themes';
 import { Command } from '../../../canvas/models/commands.model';
 import { NewsletterAssembler } from '../../../canvas/services/newsletter-assembler.service';
 import { CanvasStore } from '../../../canvas/state/canvas.store';
@@ -106,8 +107,14 @@ export class GenerateMenu {
     // Picked up front so the request's `theme` field and the eventual commit
     // agree — resolved as one dispatch below, alongside `AddElementsCommand`,
     // so "Generate" still costs exactly one undo step even when it also
-    // rotates the colour theme.
-    const nextTheme = this.editorSettings.autoVaryTheme() ? pickNextTheme(this.canvas.theme()) : this.canvas.theme();
+    // rotates the colour theme. Branded mode pins the theme to `TCS_CORPORATE`
+    // and ignores auto-vary — cycling through the free-form palette while
+    // showing the TCS/TATA logos would look off-brand.
+    const nextTheme = this.canvas.branded()
+      ? TCS_CORPORATE
+      : this.editorSettings.autoVaryTheme()
+        ? pickNextTheme(this.canvas.theme())
+        : this.canvas.theme();
 
     this.agentClient
       .generate({
@@ -134,6 +141,9 @@ export class GenerateMenu {
           const steps: Command[] = [];
           if (nextTheme.id !== this.canvas.theme().id) {
             steps.push(new ApplyThemeCommand(this.canvas, nextTheme));
+          }
+          if (built.background !== undefined && built.background !== page.background) {
+            steps.push(new SetPageBackgroundCommand(this.canvas, page.id, built.background));
           }
           if (built.elements.length > 0) {
             steps.push(new AddElementsCommand(this.canvas, built.elements));

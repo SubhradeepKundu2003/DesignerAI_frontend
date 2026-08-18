@@ -12,9 +12,9 @@ import { mergeFixedList, text, translate } from './template-kit';
  * native, editable text laid on top.
  */
 
-const BANNER_W = 270;
-const TIP = 34;
-const GAP = 40;
+const BANNER_W = 220;
+const TIP = 24;
+const GAP = 20;
 const HEX_R = 85;
 
 const HEX_LEFT_X = BANNER_W + TIP + GAP;

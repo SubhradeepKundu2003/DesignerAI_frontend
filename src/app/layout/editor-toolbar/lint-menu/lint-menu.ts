@@ -41,7 +41,7 @@ export class LintMenu {
   }
 
   protected recheck(): void {
-    this.issues.set(this.lintService.lint(this.canvas.activePage()));
+    this.issues.set(this.lintService.lint(this.canvas.activePage(), this.canvas.theme()));
   }
 
   protected close(): void {

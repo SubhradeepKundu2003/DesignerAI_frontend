@@ -38,8 +38,8 @@ function build(origin: { x: number; y: number }, content?: VennDiagramContent): 
   const circleY = 0;
 
   elements.push(
-    { ...circle({ x: leftX, y: circleY, diameter: CIRCLE_D, fill: ACCENTS.indigo.solid, name: 'Left set' }), opacity: 0.72 },
-    { ...circle({ x: rightX, y: circleY, diameter: CIRCLE_D, fill: ACCENTS.teal.solid, name: 'Right set' }), opacity: 0.72 },
+    { ...circle({ x: leftX, y: circleY, diameter: CIRCLE_D, fill: ACCENTS.indigo.solid, fillRef: 'accent-0-solid', name: 'Left set' }), opacity: 0.72 },
+    { ...circle({ x: rightX, y: circleY, diameter: CIRCLE_D, fill: ACCENTS.teal.solid, fillRef: 'accent-1-solid', name: 'Right set' }), opacity: 0.72 },
   );
 
   elements.push(

@@ -6,9 +6,13 @@ import { circle, connector, mergeFixedList, text, translate } from './template-k
 const WIDTH = 698;
 const HEIGHT = 280;
 const CENTER_Y = 140;
-const MARGIN_X = 40;
 const NODE_D = 56;
 const CALLOUT = { width: 180, height: 90 };
+// The first/last node's callout is centred on the node (`cx - CALLOUT.width / 2`),
+// so `MARGIN_X` must be at least half the callout width or those two callouts
+// overhang past the template's own declared `WIDTH` -- independent of any
+// content length, this was true even for the short placeholder titles/bodies.
+const MARGIN_X = CALLOUT.width / 2 + 2;
 
 const NODE_X = [0, 1, 2, 3].map((i) => MARGIN_X + i * ((WIDTH - MARGIN_X * 2) / 3));
 

@@ -106,7 +106,7 @@ const THUMBNAIL =
     const y = row * (CARD.height + GAP);
     return (
       `<path d="M${x + 24} ${y + CARD.height - PEDESTAL_HEIGHT} h${CARD.width - 48} v${PEDESTAL_HEIGHT} a${(CARD.width - 48) / 2} ${PEDESTAL_HEIGHT} 0 0 1 -${CARD.width - 48} 0 Z" fill="${accent.tint}"/>` +
-      `<text x="${x + CARD.width / 2}" y="${y + 60}" text-anchor="middle" font-family="Inter" font-size="40" font-weight="700" fill="${accent.solid}">${kpi.value}</text>`
+      `<text x="${x + CARD.width / 2}" y="${y + 60}" text-anchor="middle" font-family="Houschka Rounded Alt" font-size="40" font-weight="700" fill="${accent.solid}">${kpi.value}</text>`
     );
   }).join('') +
   `</svg>`;

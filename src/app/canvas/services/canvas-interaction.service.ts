@@ -187,6 +187,20 @@ export class CanvasInteractions implements OnDestroy {
       return;
     }
 
+    // A group (or shift-click multi-select) drag is not only ever started by
+    // the user: the first time the pointer-driven node moves, Konva's
+    // transformer hands each *other* attached node its own native drag via
+    // `startDrag` (see `_proxyDrag` in `Transformer.js`) — and `startDrag`
+    // fires a real `dragstart` that bubbles up here too. Treating that as a
+    // new gesture would stomp the one already in progress and silently start
+    // tracking that sibling as primary instead of the node under the
+    // pointer, which is what used to make a random member of the group stop
+    // following the cursor. A genuine new gesture can only begin once the
+    // previous one has ended, so ignore any dragstart while one is live.
+    if (this.primaryDragNode) {
+      return;
+    }
+
     this.dragOrigin.clear();
     this.primaryDragNode = event.target as ElementNode;
     for (const node of (this.transformer?.nodes() ?? []) as ElementNode[]) {
@@ -201,10 +215,17 @@ export class CanvasInteractions implements OnDestroy {
    * overriding it here is the sanctioned way to snap a native drag without
    * fighting it.
    *
-   * Every other selected node is left alone: Konva's transformer already
-   * mirrors this same node's movement onto them (see the class doc), so
-   * snapping — or otherwise repositioning — one of them here would apply that
-   * movement twice and pull the group apart instead of moving it as one.
+   * Every other selected node started this gesture mirroring this node's
+   * movement, but only for the first `dragmove` tick: Konva's transformer
+   * (`_proxyDrag` in `Transformer.js`) applies that one delta and then calls
+   * `startDrag` on each of them, handing them off to their own independent
+   * native drag that tracks the raw pointer directly from then on. So once
+   * this node's position is overridden below, it silently drifts out of sync
+   * with the rest of the selection — that's the bug where dragging a group
+   * makes the grabbed element snap/stick to the grid while its siblings glide
+   * along with the mouse. The fix is to re-apply the exact same adjustment to
+   * every other dragged node, every tick, so the whole selection keeps moving
+   * as one rigid unit instead of just the pointer-driven node snapping alone.
    */
   private onDragMove(node: ElementNode): void {
     if (node !== this.primaryDragNode) {
@@ -224,8 +245,11 @@ export class CanvasInteractions implements OnDestroy {
         .elements()
         .filter((candidate) => !movingIds.has(candidate.id) && candidate.visible);
 
+      const rawX = node.x();
+      const rawY = node.y();
+
       const result = this.snapping.snap(
-        { x: node.x(), y: node.y(), width: element.width, height: element.height },
+        { x: rawX, y: rawY, width: element.width, height: element.height },
         others,
         {
           page: { width: page.width, height: page.height },
@@ -239,6 +263,16 @@ export class CanvasInteractions implements OnDestroy {
 
       node.position({ x: result.x, y: result.y });
       this.guides.render(result.guides, { width: page.width, height: page.height });
+
+      const dx = result.x - rawX;
+      const dy = result.y - rawY;
+      if (dx !== 0 || dy !== 0) {
+        for (const other of this.dragOrigin.keys()) {
+          if (other !== node) {
+            other.position({ x: other.x() + dx, y: other.y() + dy });
+          }
+        }
+      }
     }
   }
 

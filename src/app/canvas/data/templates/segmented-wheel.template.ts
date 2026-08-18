@@ -13,17 +13,25 @@ import { mergeFixedList, text, translate } from './template-kit';
  * five surrounding callouts stay native, editable text.
  */
 
-const OUTER_R = 105;
+const OUTER_R = 95;
 const INNER_R = 42;
 const WHEEL_BOX = OUTER_R * 2 + 10;
-const CALLOUT_W = 260;
-const GAP = 30;
+const CALLOUT_W = 235;
+const GAP = 14;
 const TOP_H = 130;
 const BOTTOM_H = 130;
 const BOTTOM_CALLOUT_H = 100;
+const WHEEL_Y = 10;
+const BOTTOM_ROW_GAP = 30;
 
 const WIDTH = CALLOUT_W * 2 + GAP * 2 + WHEEL_BOX;
-const HEIGHT = TOP_H + Math.max(WHEEL_BOX - TOP_H, BOTTOM_H) + BOTTOM_CALLOUT_H + 20;
+// The true bottom edge is the bottom-centre callout's own bottom (`build()`'s
+// `slots[3]`, the one slot stacked *below* the bottom row rather than beside
+// the wheel) -- `Math.max(WHEEL_BOX - TOP_H, BOTTOM_H) + BOTTOM_CALLOUT_H`
+// undercounted this by not including `WHEEL_Y`/`BOTTOM_ROW_GAP` at all,
+// leaving the declared template height ~100px short of what `build()`
+// actually renders regardless of content length.
+const HEIGHT = WHEEL_Y + WHEEL_BOX + BOTTOM_ROW_GAP + BOTTOM_H + BOTTOM_CALLOUT_H;
 
 const WEDGES: { iconName: IconName; title: string; body: string }[] = [
   { iconName: 'globe', title: 'Lorem ipsum', body: 'A short paragraph describing this segment.' },
@@ -81,7 +89,7 @@ function build(origin: { x: number; y: number }, content?: SegmentedWheelContent
   const elements: CanvasElement[] = [];
 
   const wheelX = CALLOUT_W + GAP;
-  const wheelY = 10;
+  const wheelY = WHEEL_Y;
   const wheelImage: ImageElement = {
     id: generateId(),
     name: 'Segmented wheel',
@@ -120,9 +128,9 @@ function build(origin: { x: number; y: number }, content?: SegmentedWheelContent
   const slots: { x: number; y: number; align: 'left' | 'right' | 'center'; width: number; height: number }[] = [
     { x: 0, y: 0, align: 'right', width: CALLOUT_W, height: TOP_H },
     { x: wheelX + WHEEL_BOX + GAP, y: 0, align: 'left', width: CALLOUT_W, height: TOP_H },
-    { x: wheelX + WHEEL_BOX + GAP, y: wheelY + WHEEL_BOX + 30, align: 'left', width: CALLOUT_W, height: BOTTOM_H },
-    { x: wheelX - 40, y: wheelY + WHEEL_BOX + 30 + BOTTOM_H, align: 'center', width: WHEEL_BOX + 80, height: BOTTOM_CALLOUT_H },
-    { x: 0, y: wheelY + WHEEL_BOX + 30, align: 'right', width: CALLOUT_W, height: BOTTOM_H },
+    { x: wheelX + WHEEL_BOX + GAP, y: wheelY + WHEEL_BOX + BOTTOM_ROW_GAP, align: 'left', width: CALLOUT_W, height: BOTTOM_H },
+    { x: wheelX - 40, y: wheelY + WHEEL_BOX + BOTTOM_ROW_GAP + BOTTOM_H, align: 'center', width: WHEEL_BOX + 80, height: BOTTOM_CALLOUT_H },
+    { x: 0, y: wheelY + WHEEL_BOX + BOTTOM_ROW_GAP, align: 'right', width: CALLOUT_W, height: BOTTOM_H },
   ];
 
   wedges.forEach((wedge, i) => {

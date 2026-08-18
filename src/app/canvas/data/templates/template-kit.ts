@@ -37,7 +37,7 @@ export function text(
     ...base(rest),
     type: 'text',
     text: value,
-    fontFamily: fontFamily ?? 'Inter',
+    fontFamily: fontFamily ?? 'Houschka Rounded Alt',
     fontSize: fontSize ?? 15,
     fill: fill ?? '#1c1f24',
     fillRef,

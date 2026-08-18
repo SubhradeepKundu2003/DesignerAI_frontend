@@ -119,7 +119,7 @@ const THUMBNAIL =
     return (
       `<rect x="${x}" y="${y + PANEL_TOP}" width="${CARD.width}" height="${CARD.height - PANEL_TOP}" rx="14" fill="#ffffff" stroke="${BORDER}"/>` +
       `<path d="M${x + CARD.width / 2 - TAB_WIDTH / 2} ${y + TAB_HEIGHT} h${TAB_WIDTH} a${TAB_WIDTH / 2} ${TAB_HEIGHT} 0 0 0 -${TAB_WIDTH} 0 Z" fill="${accent.solid}"/>` +
-      `<text x="${x + 20}" y="${y + PANEL_TOP + 50}" font-family="Inter" font-size="30" font-weight="700" fill="${accent.solid}">${kpi.value}</text>`
+      `<text x="${x + 20}" y="${y + PANEL_TOP + 50}" font-family="Houschka Rounded Alt" font-size="30" font-weight="700" fill="${accent.solid}">${kpi.value}</text>`
     );
   }).join('') +
   `</svg>`;

@@ -11,14 +11,20 @@ import { circle, mergeFixedList, rect, text, translate } from './template-kit';
  * milestone cards.
  */
 
-const SPACING = 150;
+const SPACING = 111;
 const COUNT = 6;
 const TOP_Y = 90;
-const BOTTOM_Y = 260;
+// A top-row card sits *below* `TOP_Y` (`TOP_Y + CARD_GAP + CARD_H`) and a
+// bottom-row card sits *above* `BOTTOM_Y` (`BOTTOM_Y - CARD_GAP - CARD_H`) --
+// each pair of adjacent milestones alternates rows, so the two bands need to
+// be at least `2 * (CARD_GAP + CARD_H)` apart or the cards collide in the
+// middle regardless of their (already-separated) x positions. `260` used to
+// leave the two rows just 170px apart against a 268px requirement.
 const NODE_D = 36;
-const CARD_W = 190;
+const CARD_W = 160;
 const CARD_H = 108;
 const CARD_GAP = 26;
+const BOTTOM_Y = TOP_Y + 2 * (CARD_GAP + CARD_H) + 20;
 
 const WIDTH = (COUNT - 1) * SPACING + 60 + CARD_W / 2;
 const HEIGHT = BOTTOM_Y + CARD_H + CARD_GAP + 30;

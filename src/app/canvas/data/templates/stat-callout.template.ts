@@ -97,7 +97,7 @@ const THUMBNAIL =
   `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">` +
   `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="20" fill="#ffffff" stroke="${BORDER}"/>` +
   `<rect x="0" y="0" width="8" height="${HEIGHT}" rx="4" fill="${ACCENT.solid}"/>` +
-  `<text x="40" y="120" font-family="Inter" font-size="56" font-weight="700" fill="${ACCENT.solid}">${STAT}</text>` +
+  `<text x="40" y="120" font-family="Houschka Rounded Alt" font-size="56" font-weight="700" fill="${ACCENT.solid}">${STAT}</text>` +
   `<line x1="${DIVIDER_X}" y1="24" x2="${DIVIDER_X}" y2="${HEIGHT - 24}" stroke="${BORDER}" stroke-width="2"/>` +
   `</svg>`;
 

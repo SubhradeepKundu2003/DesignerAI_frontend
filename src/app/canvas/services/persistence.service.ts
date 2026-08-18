@@ -5,7 +5,7 @@ import { ProjectApiService } from '../../core/services/project-api.service';
 import { CommandBus } from '../commands/command-bus.service';
 import { LoadCanvasCommand } from '../commands/load-canvas.command';
 import { CanvasDocument, isCanvasDocument } from '../models/canvas-document.model';
-import { CanvasStore } from '../state/canvas.store';
+import { CanvasStore, createBlankDocument } from '../state/canvas.store';
 import { AssetExternalizationService } from './asset-externalization.service';
 
 const CACHE_KEY_PREFIX = 'designerai:canvas:';
@@ -39,6 +39,15 @@ export class PersistenceService {
   readonly hasSave = signal(false);
 
   private projectId: string | null = null;
+  /**
+   * The project whose initial `openProject` load has actually settled (loaded
+   * or confirmed empty) — as opposed to `projectId`, which flips the instant
+   * `openProject` is called. A write is only allowed once its target project
+   * matches both, which is what stops the placeholder blank document (set
+   * below, before the load resolves) from autosaving over a slow-loading
+   * project's real content.
+   */
+  private loadedProjectId: string | null = null;
   private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   private savedFlashTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -67,11 +76,20 @@ export class PersistenceService {
 
   openProject(projectId: string): void {
     this.projectId = projectId;
+    this.loadedProjectId = null;
     this.hasSave.set(this.storage.has(this.cacheKey(projectId)));
+    // Reset immediately -- otherwise the previously open project's document
+    // stays on screen (and eligible for autosave under the new project's id,
+    // see `writeDocument`) until the fetch below settles.
+    this.canvas.replaceDocument(createBlankDocument());
 
     this.api.getDocument(projectId).subscribe({
       next: (document) => {
-        if (projectId !== this.projectId || !isCanvasDocument(document)) {
+        if (projectId !== this.projectId) {
+          return;
+        }
+        this.loadedProjectId = projectId;
+        if (!isCanvasDocument(document)) {
           return;
         }
         this.canvas.replaceDocument(document);
@@ -82,10 +100,13 @@ export class PersistenceService {
         if (projectId !== this.projectId) {
           return;
         }
+        this.loadedProjectId = projectId;
         const cached = this.readCache(projectId);
         if (cached) {
           this.canvas.replaceDocument(cached);
         }
+        // else: no document on the backend and nothing cached -- this is a
+        // genuinely new project, so the blank document set above is correct.
       },
     });
   }
@@ -123,13 +144,19 @@ export class PersistenceService {
   }
 
   private scheduleAutosave(document: CanvasDocument): void {
+    // Captured now, not read back from `this.projectId` when the timer fires --
+    // otherwise switching projects inside the debounce window (e.g. clicking
+    // "New project" right after an edit) rewrites `this.projectId` out from
+    // under the pending write, and the *previous* project's document gets
+    // saved under the *new* project's id.
+    const projectId = this.projectId;
     clearTimeout(this.autosaveTimer);
-    this.autosaveTimer = setTimeout(() => this.writeDocument(document), AUTOSAVE_DELAY_MS);
+    this.autosaveTimer = setTimeout(() => this.writeDocument(document, projectId), AUTOSAVE_DELAY_MS);
   }
 
-  private writeDocument(document: CanvasDocument): void {
-    const projectId = this.projectId;
-    if (!projectId) {
+  /** `projectId` defaults to the currently-open one, for the explicit Save button. */
+  private writeDocument(document: CanvasDocument, projectId: string | null = this.projectId): void {
+    if (!projectId || projectId !== this.projectId || projectId !== this.loadedProjectId) {
       return;
     }
 

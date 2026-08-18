@@ -11,9 +11,9 @@ import { mergeFixedList, rect, text, translate } from './template-kit';
  * over native, per-segment ribbon rectangles and native step labels.
  */
 
-const SIDEBAR_W = 240;
-const SIDEBAR_GAP = 50;
-const SEGMENT_W = 100;
+const SIDEBAR_W = 180;
+const SIDEBAR_GAP = 20;
+const SEGMENT_W = 62;
 const ARROW_COUNT = 8;
 const RIBBON_H = 24;
 const ARROW_H = 70;

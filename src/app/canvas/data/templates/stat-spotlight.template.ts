@@ -93,7 +93,7 @@ const THUMBNAIL =
   `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">` +
   `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="20" fill="#ffffff" stroke="${BORDER}"/>` +
   `<path d="M20 ${HEIGHT - DOME_HEIGHT} h${WIDTH - 40} v${DOME_HEIGHT} a${(WIDTH - 40) / 2} ${DOME_HEIGHT} 0 0 1 -${WIDTH - 40} 0 Z" fill="${ACCENT.tint}"/>` +
-  `<text x="${WIDTH / 2}" y="150" text-anchor="middle" font-family="Inter" font-size="64" font-weight="700" fill="${ACCENT.solid}">${STAT}</text>` +
+  `<text x="${WIDTH / 2}" y="150" text-anchor="middle" font-family="Houschka Rounded Alt" font-size="64" font-weight="700" fill="${ACCENT.solid}">${STAT}</text>` +
   `</svg>`;
 
 export const STAT_SPOTLIGHT_TEMPLATE: InfographicTemplate = {

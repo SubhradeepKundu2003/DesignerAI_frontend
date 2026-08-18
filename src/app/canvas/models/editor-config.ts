@@ -62,8 +62,11 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   autoVaryTheme: true,
 };
 
-/** Fonts offered in the text properties panel (all web-safe for now). */
+/** Fonts offered in the text properties panel. `Houschka Rounded Alt` is
+ * self-hosted (see `styles/_fonts.scss`); the rest are web-safe. */
 export const FONT_FAMILIES = [
+  'Houschka Rounded Alt',
+  'Calibri',
   'Inter',
   'Georgia',
   'Times New Roman',

@@ -6,7 +6,7 @@ import { IconName } from './icon-svg';
 import { ACCENT_CYCLE, INK, MUTED } from './palette';
 import { circle, connector, icon, mergeFixedList, text, translate } from './template-kit';
 
-const WIDTH = 780;
+const WIDTH = 698;
 const NODE_D = 88;
 const ARC_R = NODE_D / 2 + 14;
 const COL_W = WIDTH / 5;

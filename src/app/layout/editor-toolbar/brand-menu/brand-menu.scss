@@ -1,0 +1,99 @@
+@use 'mixins' as mx;
+
+:host {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  &__panel {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    left: 0;
+    z-index: 20;
+    display: flex;
+    width: 280px;
+    flex-direction: column;
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-popover);
+    gap: var(--space-3);
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  &__hint {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+  }
+
+  &__slots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  &__slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    gap: var(--space-1);
+    text-align: center;
+  }
+
+  &__preview {
+    width: 100%;
+    height: 32px;
+    object-fit: contain;
+    background: repeating-conic-gradient(var(--color-surface-sunken) 0% 25%, transparent 0% 50%) 50% / 10px 10px;
+  }
+
+  &__slot-label {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  &__slot-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  &__upload,
+  &__reset {
+    @include mx.button-reset;
+    @include mx.focus-ring;
+
+    padding: 2px var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--color-text);
+      border-color: var(--color-text-muted);
+    }
+  }
+}

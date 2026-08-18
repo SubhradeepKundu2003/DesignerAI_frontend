@@ -91,6 +91,8 @@ export const FOREST_MONO: DesignTheme = {
  * the foundation ("think in black and white, then add colour" — p. 24), and
  * every accent below is one of the guideline's own primary/secondary/
  * tertiary hexes or a tonal step from its expanded data-viz palette (p. 27).
+ * This is `DEFAULT_THEME` (below) precisely so a document that never touches
+ * the theme picker still renders on-brand.
  *
  * TCS yellow is deliberately not one of the four `accents` here even though
  * it's a brand-unifying colour: several templates paint `accent.solid`
@@ -102,6 +104,17 @@ export const FOREST_MONO: DesignTheme = {
  * using it as a generic foreground accent would make text unreadable and
  * trip the app's own contrast linter. TCS green is excluded too — the
  * guideline reserves it exclusively for sustainability communications (p. 28).
+ *
+ * `accents[0]`/`[1]` (TCS Blue and its deep tonal step) are the guideline's
+ * *secondary* colours — p. 25 caps blue+yellow combined at ≤25% of any
+ * layout's area. `accents[2]`/`[3]` (TCS Orange, TCS Red) are *tertiary* —
+ * capped at ≤10% combined, alongside green, which this theme never emits.
+ * `DesignLintService`'s `accent-overuse` rule enforces both caps against
+ * exactly this accent ordering — reorder the array only in step with that
+ * rule's `SECONDARY_ACCENT_INDICES`/`TERTIARY_ACCENT_INDICES`. p. 25 also
+ * caps opacity use to 10-20% (subtle backgrounds/overlays) or 70-80% (strong
+ * emphasis), avoiding the mid-range — not enforced in code, since it's a
+ * per-element authoring choice rather than a property of the theme itself.
  */
 export const TCS_CORPORATE: DesignTheme = {
   id: 'theme-tcs-corporate',
@@ -203,6 +216,33 @@ export const BLOSSOM_PASTEL: DesignTheme = {
   spacing: 24,
 };
 
+/**
+ * Houschka-branded indigo theme — pairs the self-hosted "Houschka Rounded
+ * Alt" font (see `styles/_fonts.scss`) with `INDIGO_CLASSIC`'s palette.
+ * `Calibri` is the fallback offered in the font picker (`editor-config.ts`'s
+ * `FONT_FAMILIES`), not used directly here. No longer `DEFAULT_THEME` — see
+ * `TCS_CORPORATE`, above.
+ */
+export const HOUSCHKA_BRAND: DesignTheme = {
+  id: 'theme-houschka-brand',
+  name: 'Houschka Brand',
+  colors: {
+    ink: '#1c1f24',
+    muted: '#5b6472',
+    surface: '#ffffff',
+    border: '#e2e4e9',
+    accents: [
+      { name: 'Indigo', solid: '#4f46e5', tint: '#eef2ff' },
+      { name: 'Teal', solid: '#0d9488', tint: '#f0fdfa' },
+      { name: 'Amber', solid: '#d97706', tint: '#fffbeb' },
+      { name: 'Rose', solid: '#e11d48', tint: '#fff1f3' },
+    ],
+  },
+  fonts: { heading: 'Houschka Rounded Alt', body: 'Houschka Rounded Alt' },
+  radius: 8,
+  spacing: 20,
+};
+
 export const GRAPHITE_MONO: DesignTheme = {
   id: 'theme-graphite-mono',
   name: 'Graphite Mono',
@@ -224,6 +264,7 @@ export const GRAPHITE_MONO: DesignTheme = {
 };
 
 export const DESIGN_THEME_PRESETS: readonly DesignTheme[] = [
+  HOUSCHKA_BRAND,
   INDIGO_CLASSIC,
   SLATE_EDITORIAL,
   SUNSET_BOLD,
@@ -236,7 +277,7 @@ export const DESIGN_THEME_PRESETS: readonly DesignTheme[] = [
   GRAPHITE_MONO,
 ];
 
-export const DEFAULT_THEME: DesignTheme = INDIGO_CLASSIC;
+export const DEFAULT_THEME: DesignTheme = TCS_CORPORATE;
 
 /**
  * A random preset other than `current` (by id), for auto-varying the theme

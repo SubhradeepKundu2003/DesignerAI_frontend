@@ -13,11 +13,11 @@ import { circle, mergeFixedList, text, translate } from './template-kit';
  * hole or wedge icons.
  */
 
-const OUTER_R = 100;
+const OUTER_R = 92;
 const WHEEL_BOX = OUTER_R * 2 + 20;
 const CENTER_R = 54;
-const CALLOUT = { width: 260, height: 130 };
-const GAP = 24;
+const CALLOUT = { width: 235, height: 130 };
+const GAP = 12;
 const ROW_GAP = 20;
 
 const WIDTH = CALLOUT.width * 2 + GAP * 2 + WHEEL_BOX;

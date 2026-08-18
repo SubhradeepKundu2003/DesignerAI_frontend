@@ -48,6 +48,15 @@ import { Page } from '../models/canvas-document.model';
 import { DesignTheme, ThemeColorRef } from '../models/design-theme.model';
 import { PAGE_BACKGROUND, PAGE_MARGIN, PAGE_SIZE } from '../models/editor-config';
 import { halfCircle } from '../data/templates/template-kit';
+import { BrandAssetsStore } from '../state/brand-assets.store';
+import { CanvasStore } from '../state/canvas.store';
+import {
+  buildBackgroundPatternElement,
+  buildLogoElements,
+  pickBrandedBackground,
+  recolorForBrandedBackground,
+} from '../utils/branding.util';
+import { computeBoundingBox } from '../utils/geometry.util';
 import { generateId } from '../utils/id.util';
 import { measureTextHeight } from '../utils/text-measure.util';
 import { buildTemplatePlacement } from '../utils/template-placement.util';
@@ -161,6 +170,8 @@ interface QueuedBlock {
 export class NewsletterAssembler {
   private readonly matcher = inject(InfographicMatcherService);
   private readonly lint = inject(DesignLintService);
+  private readonly canvas = inject(CanvasStore);
+  private readonly brandAssets = inject(BrandAssetsStore);
 
   assemble(result: DocumentGenerateResult, theme: DesignTheme): AssembledPage[] {
     const usedTemplateIds = new Set<string>();
@@ -202,10 +213,11 @@ export class NewsletterAssembler {
     blocks: readonly LlmBlock[],
     theme: DesignTheme,
     target: { id: string; width: number; height: number },
-  ): { elements: CanvasElement[]; groups: GroupElement[]; warnings: string[] } {
+  ): { elements: CanvasElement[]; groups: GroupElement[]; warnings: string[]; background?: string } {
+    const branded = this.canvas.branded();
     const usedTemplateIds = new Set<string>();
     const contentWidth = Math.max(target.width - PAGE_MARGIN * 2, 1);
-    const elements: CanvasElement[] = buildPageDecoration(theme, target.width, target.height);
+    const elements: CanvasElement[] = buildPageDecoration(theme, target.width, target.height, branded);
     const groups: GroupElement[] = [];
     let cursorY = PAGE_MARGIN;
     let accentIndex = 0;
@@ -239,8 +251,19 @@ export class NewsletterAssembler {
       elements,
       groups,
     };
-    const warnings = this.verifyAndRepair(page);
-    return { elements: page.elements, groups: page.groups, warnings };
+    const warnings = this.verifyAndRepair(page, theme);
+    if (branded) {
+      // A second "Generate" onto a page that's already branded must keep its
+      // existing black-or-white background rather than re-flipping the coin:
+      // that page's *existing* content (not part of `elements` above, so
+      // `recolorForBrandedBackground` below never touches it) was coloured
+      // for its current background, and a fresh flip would stand it on the
+      // wrong side of that pick without anything here to fix it back up.
+      const existingPage = this.canvas.pages().find((candidate) => candidate.id === target.id);
+      const alreadyBranded = existingPage?.elements.some((element) => element.brandRole !== undefined) ?? false;
+      this.applyBranding(page, alreadyBranded ? existingPage!.background : undefined);
+    }
+    return { elements: page.elements, groups: page.groups, warnings, background: branded ? page.background : undefined };
   }
 
   /**
@@ -269,8 +292,9 @@ export class NewsletterAssembler {
     };
     const contentWidth = Math.max(page.width - PAGE_MARGIN * 2, 1);
     const maxY = page.height - PAGE_MARGIN;
+    const branded = this.canvas.branded();
 
-    const elements: CanvasElement[] = buildPageDecoration(theme, page.width, page.height);
+    const elements: CanvasElement[] = buildPageDecoration(theme, page.width, page.height, branded);
     const groups: GroupElement[] = [];
     const warnings: string[] = [];
     let cursorY = PAGE_MARGIN;
@@ -328,7 +352,10 @@ export class NewsletterAssembler {
     }
 
     const finished: Page = { ...page, elements, groups };
-    const lintWarnings = this.verifyAndRepair(finished);
+    const lintWarnings = this.verifyAndRepair(finished, theme);
+    if (branded) {
+      this.applyBranding(finished);
+    }
     return {
       assembledPage: {
         page: finished,
@@ -546,8 +573,31 @@ export class NewsletterAssembler {
    * and reports whatever's still left (e.g. a grown box now overlapping a
    * neighbour) as a warning. Never drops content and never blocks the commit.
    */
-  private verifyAndRepair(page: Page): string[] {
+  /**
+   * TCS/TATA branded mode's finishing pass (`utils/branding.util.ts`), run
+   * after `verifyAndRepair` so lint-repair only ever sees real content.
+   * Forces a black-or-white `background` and layers the background-pattern
+   * image under, and the two logos over, whatever `buildPageDecoration` and
+   * the content loop already placed — mutates `page` in place, the same
+   * contract `verifyAndRepair` uses.
+   */
+  private applyBranding(page: Page, preferredBackground?: string): void {
+    const background = preferredBackground ?? pickBrandedBackground();
+    const pattern = buildBackgroundPatternElement(page, background);
+    const logos = buildLogoElements(page, background, this.brandAssets.assets());
+    // Content built earlier in the pipeline is coloured for TCS_CORPORATE's
+    // white `surface`; `background` here is only decided now (a fresh
+    // per-page coin flip, or the page's already-picked one — see
+    // `assembleOntoPage`), so re-tone every `ink`/`muted` element to actually
+    // read against it.
+    const recolored = recolorForBrandedBackground(page.elements, background);
+    page.background = background;
+    page.elements = [pattern, ...recolored, ...logos];
+  }
+
+  private verifyAndRepair(page: Page, theme: DesignTheme): string[] {
     const overflowIssues = this.lint.lint(page).filter((issue) => issue.rule === 'text-overflow');
+    const resizedGroupIds = new Set<string>();
     for (const issue of overflowIssues) {
       const index = page.elements.findIndex((element) => element.id === issue.elementIds[0]);
       const element = index >= 0 ? page.elements[index] : undefined;
@@ -555,9 +605,54 @@ export class NewsletterAssembler {
         continue;
       }
       const shrunk = shrinkToFit(element);
-      page.elements[index] = shrunk ?? growToFit(element);
+      const repaired = shrunk ?? growToFit(element);
+      page.elements[index] = repaired;
+      // `shrinkToFit` only changes `fontSize` (the box stays the size it was
+      // built at), but `growToFit` changes `height` -- the parent template's
+      // `GroupElement` box (computed once at build time by
+      // `buildTemplatePlacement`, before this repair ever runs) would
+      // otherwise go stale relative to the content it's supposed to enclose.
+      if (!shrunk && repaired.parentId) {
+        resizedGroupIds.add(repaired.parentId);
+      }
+      if (!shrunk) {
+        // Growing straight down can push this box into whatever was laid out
+        // just below it -- a sibling within its own template (e.g. a quote's
+        // attribution line) or the next block stacked underneath it on the
+        // page (`packPage`/`assembleOntoPage` stack every block by a cursorY
+        // computed *before* this repair ever runs). Push every element that
+        // started at or below the old bottom edge down by the same amount --
+        // page-wide, not just same-template siblings -- so the grow reflows
+        // the rest of the page instead of colliding with it. Decorative
+        // elements (`buildPageDecoration`'s half-circles) are pinned to the
+        // page's own edges, not the content flow, so they're excluded.
+        const growth = repaired.height - element.height;
+        if (growth > 0) {
+          const originalBottom = element.y + element.height;
+          page.elements = page.elements.map((candidate) => {
+            if (candidate.id === repaired.id || candidate.decorative || candidate.y < originalBottom) {
+              return candidate;
+            }
+            if (candidate.parentId) {
+              resizedGroupIds.add(candidate.parentId);
+            }
+            return { ...candidate, y: candidate.y + growth };
+          });
+        }
+      }
     }
-    return this.lint.lint(page).map((issue) => issue.message);
+    recomputeGroupBoxes(page, resizedGroupIds);
+
+    // Text-overflow repair can itself push a box past the page (most often
+    // the bottom edge, when `growToFit` grows the last block on a page) on
+    // top of whatever the model/template geometry already put out of
+    // bounds -- re-lint fresh rather than reusing `overflowIssues`.
+    const outOfBoundsIssues = this.lint.lint(page).filter((issue) => issue.rule === 'out-of-bounds');
+    for (const issue of outOfBoundsIssues) {
+      repairOutOfBounds(page, issue.elementIds[0]);
+    }
+
+    return this.lint.lint(page, theme).map((issue) => issue.message);
   }
 }
 
@@ -569,7 +664,16 @@ export class NewsletterAssembler {
  * coordinates) and flagged `decorative` so `DesignLintService` never reports
  * them as out-of-bounds or as overlapping the real content stacked on top.
  */
-function buildPageDecoration(theme: DesignTheme, pageWidth: number, pageHeight: number): CanvasElement[] {
+/**
+ * `branded` skips these entirely in TCS/TATA branded mode: they're painted
+ * in the theme's accent tints, which would put colour back into a background
+ * the branded-mode contract restricts to black/white — `applyBranding`'s own
+ * dot-pattern image is the only background decoration a branded page gets.
+ */
+function buildPageDecoration(theme: DesignTheme, pageWidth: number, pageHeight: number, branded: boolean): CanvasElement[] {
+  if (branded) {
+    return [];
+  }
   const [bottomFill, bottomRef] = accentFor(theme, 0, 'tint');
   const [cornerFill, cornerRef] = accentFor(theme, 1, 'tint');
 
@@ -636,6 +740,85 @@ function restoreUsedTemplateIds(current: Set<string>, snapshot: ReadonlySet<stri
  * instead of being silently clipped at its old, placeholder-sized box. */
 function growToFit(element: TextElement): TextElement {
   return { ...element, height: Math.ceil(measureTextHeight(element)) };
+}
+
+/**
+ * Refreshes each listed group's own bounding box from its *current* member
+ * positions -- the same `computeBoundingBox` call `buildTemplatePlacement`
+ * makes at build time, re-run after a repair (`growToFit`) changes a
+ * member's box out from under it. Without this, the `GroupElement` shipped
+ * in `AssembledPage` keeps its stale, build-time box: once the page lands in
+ * the editor, the group's selection outline and drag hit-area no longer
+ * cover the content that grew past it.
+ */
+function recomputeGroupBoxes(page: Page, groupIds: ReadonlySet<string>): void {
+  if (groupIds.size === 0) {
+    return;
+  }
+  const membersByGroup = new Map<string, CanvasElement[]>();
+  for (const element of page.elements) {
+    if (element.parentId && groupIds.has(element.parentId)) {
+      const members = membersByGroup.get(element.parentId);
+      if (members) {
+        members.push(element);
+      } else {
+        membersByGroup.set(element.parentId, [element]);
+      }
+    }
+  }
+  page.groups = page.groups.map((group) => {
+    const members = membersByGroup.get(group.id);
+    return members ? { ...group, ...computeBoundingBox(members) } : group;
+  });
+}
+
+/**
+ * Repairs one `out-of-bounds` lint issue by translating the whole placed
+ * block the offending element belongs to (its template group if it has one,
+ * otherwise just the element itself) back inside the page rect -- the moving
+ * counterpart to `growToFit`'s resizing repair, for when a template's own
+ * geometry (or a growth repair above) pushes it past a page edge instead of
+ * just past its own box. A rigid translation, not a resize: every member
+ * moves by the same delta, so a template's internal geometry — and the
+ * bounding box relationship `recomputeGroupBoxes` just restored — stays
+ * intact. Idempotent: re-running it on an already-in-bounds block computes a
+ * zero delta and no-ops, so a second issue naming another member of a block
+ * this already fixed is harmless.
+ */
+function repairOutOfBounds(page: Page, elementId: string): void {
+  const element = page.elements.find((candidate) => candidate.id === elementId);
+  if (!element) {
+    return;
+  }
+  const groupId = element.parentId;
+  const blockIds = groupId
+    ? new Set(page.elements.filter((candidate) => candidate.parentId === groupId).map((candidate) => candidate.id))
+    : new Set([elementId]);
+  const blockElements = page.elements.filter((candidate) => blockIds.has(candidate.id));
+  const box = computeBoundingBox(blockElements);
+
+  let dx = 0;
+  if (box.x < 0) {
+    dx = -box.x;
+  } else if (box.x + box.width > page.width) {
+    dx = page.width - (box.x + box.width);
+  }
+  let dy = 0;
+  if (box.y < 0) {
+    dy = -box.y;
+  } else if (box.y + box.height > page.height) {
+    dy = page.height - (box.y + box.height);
+  }
+  if (dx === 0 && dy === 0) {
+    return;
+  }
+
+  page.elements = page.elements.map((candidate) =>
+    blockIds.has(candidate.id) ? { ...candidate, x: candidate.x + dx, y: candidate.y + dy } : candidate,
+  );
+  if (groupId) {
+    page.groups = page.groups.map((group) => (group.id === groupId ? { ...group, x: group.x + dx, y: group.y + dy } : group));
+  }
 }
 
 /** First-choice fallback text when a matched template has no content override to receive `block`'s data. */

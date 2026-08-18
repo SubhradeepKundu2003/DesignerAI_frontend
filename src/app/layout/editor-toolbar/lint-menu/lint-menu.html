@@ -7,7 +7,7 @@
         <p class="lint-menu__empty">No issues found.</p>
       } @else {
         <ul class="lint-menu__list">
-          @for (issue of issues(); track issue.rule + issue.elementIds.join(',')) {
+          @for (issue of issues(); track issue.rule + issue.elementIds.join(',') + issue.message) {
             <li class="lint-menu__issue">{{ issue.message }}</li>
           }
         </ul>

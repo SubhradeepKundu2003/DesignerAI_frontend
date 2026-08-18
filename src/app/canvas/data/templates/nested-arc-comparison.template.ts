@@ -12,23 +12,32 @@ import { connector, mergeFixedList, text, translate } from './template-kit';
  * subheading callouts hanging off each band stay native, editable text.
  */
 
-const CURL_W = 260;
+const CURL_W = 160;
 const BAR_H = 46;
 const BAR_GAP = 4;
 const BAR_START_X = CURL_W - 40;
-const BAR_MAX_W = 900;
-const STUB_H = 130;
-const CALLOUT_W = 170;
+const BAR_MAX_W = 538;
+const CALLOUT_W = 150;
+/** Vertical spacing between one band's callout and the next -- tall enough
+ * that a label+body pair (20px label + 70px body + margin) never overlaps
+ * its neighbour the way the old `i * 4` near-flat stagger always did,
+ * regardless of the two callouts' horizontal overlap (their `stubX`
+ * positions can sit closer together than `CALLOUT_W`, especially for
+ * adjacent bands). */
+const CALLOUT_ROW_GAP = 100;
+const CALLOUT_TOP_MARGIN = 20;
 
 const BANDS: { label: string; body: string; barWidth: number }[] = [
-  { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: 380 },
-  { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: 520 },
-  { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: 660 },
-  { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: 800 },
+  { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: 227 },
+  { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: 311 },
+  { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: 395 },
+  { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: 478 },
   { label: 'Subheading', body: 'A short description for this item goes here.', barWidth: BAR_MAX_W },
 ];
 
-const HEIGHT = BANDS.length * (BAR_H + BAR_GAP) + STUB_H;
+const BARS_HEIGHT = BANDS.length * (BAR_H + BAR_GAP);
+const CALLOUTS_TOP = BARS_HEIGHT + CALLOUT_TOP_MARGIN;
+const HEIGHT = CALLOUTS_TOP + BANDS.length * CALLOUT_ROW_GAP;
 const WIDTH = BAR_START_X + BAR_MAX_W + 40;
 
 function ribbonSvg(accents: readonly { readonly solid: string }[]): string {
@@ -76,7 +85,7 @@ function build(origin: { x: number; y: number }, content?: NestedArcComparisonCo
     const y = i * (BAR_H + BAR_GAP);
     const barWidth = BANDS[i].barWidth;
     const stubX = BAR_START_X + barWidth - 40;
-    const stubBottomY = HEIGHT - STUB_H + i * 4;
+    const stubBottomY = CALLOUTS_TOP + i * CALLOUT_ROW_GAP;
 
     elements.push(
       text({

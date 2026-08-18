@@ -5,11 +5,11 @@ import { circle, connector, mergeFixedList, text, translate } from './template-k
 
 const ROWS = 3;
 const ROW_H = 140;
-const HUB_R = 90;
+const HUB_R = 83;
 const NODE_D = 64;
 const RING_D = 26;
-const LABEL_WIDTH = 220;
-const LABEL_GAP = 20;
+const LABEL_WIDTH = 200;
+const LABEL_GAP = 14;
 
 const LEFT_CX = LABEL_WIDTH + LABEL_GAP + NODE_D / 2;
 const RIGHT_CX_OFFSET = LEFT_CX;

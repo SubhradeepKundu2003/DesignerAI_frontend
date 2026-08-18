@@ -11,12 +11,12 @@ import { icon, mergeFixedList, text, translate } from './template-kit';
  * editable) title/body text laid on top of each banner's body.
  */
 
-const LEFT_W = 330;
-const GAP = 40;
+const LEFT_W = 305;
+const GAP = 10;
 const RIGHT_X = LEFT_W + GAP;
 const BANNER_W = 360;
 const BANNER_H = 84;
-const TIP = 40;
+const TIP = 23;
 const OVERLAP = 28;
 const STEP = BANNER_H - OVERLAP;
 

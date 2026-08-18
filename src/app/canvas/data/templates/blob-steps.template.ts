@@ -3,8 +3,8 @@ import { InfographicTemplate } from '../../models/infographic-template.model';
 import { ACCENT_CYCLE, INK, accentRef } from './palette';
 import { circle, mergeFixedList, rect, text, translate } from './template-kit';
 
-const COL_W = 230;
-const GAP = 40;
+const COL_W = 219;
+const GAP = 20;
 const BLOB_W = 200;
 const BLOB_H = 210;
 const BADGE_D = 56;

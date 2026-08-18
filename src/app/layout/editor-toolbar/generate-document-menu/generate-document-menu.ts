@@ -11,7 +11,7 @@ import { ImageElement } from '../../../canvas/models/canvas-element.model';
 import { Page } from '../../../canvas/models/canvas-document.model';
 import { DesignTheme } from '../../../canvas/models/design-theme.model';
 import { PAGE_MARGIN } from '../../../canvas/models/editor-config';
-import { pickNextTheme } from '../../../canvas/data/design-themes';
+import { TCS_CORPORATE, pickNextTheme } from '../../../canvas/data/design-themes';
 import { AssembledPage, NewsletterAssembler } from '../../../canvas/services/newsletter-assembler.service';
 import { ImageUploadService } from '../../../canvas/services/image-upload.service';
 import { PageFactory } from '../../../canvas/services/page-factory.service';
@@ -123,8 +123,13 @@ export class GenerateDocumentMenu {
 
     // Resolved up front, same as `GenerateMenu`, and folded into the same
     // `buildInsertPagesCommand` `CompositeCommand` below rather than dispatched
-    // separately, so "Generate…" still costs exactly one undo step.
-    const nextTheme = this.editorSettings.autoVaryTheme() ? pickNextTheme(this.canvas.theme()) : this.canvas.theme();
+    // separately, so "Generate…" still costs exactly one undo step. Branded
+    // mode pins the theme the same way `GenerateMenu` does.
+    const nextTheme = this.canvas.branded()
+      ? TCS_CORPORATE
+      : this.editorSettings.autoVaryTheme()
+        ? pickNextTheme(this.canvas.theme())
+        : this.canvas.theme();
 
     const projectId = this.persistence.currentProjectId() ?? undefined;
 

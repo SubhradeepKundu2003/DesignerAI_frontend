@@ -1,0 +1,38 @@
+<div class="brand-menu">
+  <app-icon-button
+    icon="image"
+    label="TCS/TATA branding"
+    variant="toggle"
+    [active]="branded()"
+    (activated)="toggle()"
+  />
+
+  @if (open()) {
+    <div class="brand-menu__panel" role="menu">
+      <label class="brand-menu__toggle">
+        <input type="checkbox" [checked]="branded()" (change)="toggleBranded()" />
+        TCS/TATA branded mode
+      </label>
+      <p class="brand-menu__hint">
+        Every page carries the TCS and TATA logos, auto-picked black or white against a
+        black-or-white background.
+      </p>
+
+      <div class="brand-menu__slots">
+        @for (option of slots; track option.slot) {
+          <div class="brand-menu__slot">
+            <img class="brand-menu__preview" [src]="srcFor(option.slot)" [alt]="option.label" />
+            <span class="brand-menu__slot-label">{{ option.label }}</span>
+            <div class="brand-menu__slot-actions">
+              <label class="brand-menu__upload">
+                Upload
+                <input type="file" accept="image/*" hidden (change)="onFileSelected($event, option.slot)" />
+              </label>
+              <button type="button" class="brand-menu__reset" (click)="reset(option.slot)">Reset</button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

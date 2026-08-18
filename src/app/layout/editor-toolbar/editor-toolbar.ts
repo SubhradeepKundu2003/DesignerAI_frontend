@@ -17,6 +17,7 @@ import { EditorSettingsStore } from '../../canvas/state/editor-settings.store';
 import { ThemeStore } from '../../canvas/state/theme.store';
 import { ViewportStore } from '../../canvas/state/viewport.store';
 import { IconButton } from '../../shared/components/icon-button/icon-button';
+import { BrandMenu } from './brand-menu/brand-menu';
 import { ExportMenu } from './export-menu/export-menu';
 import { GenerateDocumentMenu } from './generate-document-menu/generate-document-menu';
 import { GenerateMenu } from './generate-menu/generate-menu';
@@ -25,7 +26,7 @@ import { LintMenu } from './lint-menu/lint-menu';
 /** Top toolbar: history, object actions, canvas aids and the zoom readout. */
 @Component({
   selector: 'app-editor-toolbar',
-  imports: [IconButton, ExportMenu, GenerateMenu, GenerateDocumentMenu, LintMenu],
+  imports: [IconButton, ExportMenu, GenerateMenu, GenerateDocumentMenu, LintMenu, BrandMenu],
   templateUrl: './editor-toolbar.html',
   styleUrl: './editor-toolbar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,6 +45,10 @@ export class EditorToolbar {
 
   protected readonly themePresets = this.theme.presets;
   protected readonly activeThemeId = computed(() => this.theme.activeTheme().id);
+  /** The theme picker is disabled in branded mode — `SetBrandedModeCommand`
+   * pins the theme to `TCS_CORPORATE`, so manually switching it here would
+   * fight the branding it just applied. */
+  protected readonly branded = this.canvas.branded;
 
   protected readonly gridVisible = this.settings.gridVisible;
   protected readonly snapEnabled = this.settings.snapEnabled;

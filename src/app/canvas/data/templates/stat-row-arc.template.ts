@@ -91,7 +91,7 @@ const THUMBNAIL =
     const colX = i * (COL_WIDTH + GAP);
     const accent = ACCENT_CYCLE[i % ACCENT_CYCLE.length];
     return (
-      `<text x="${colX + COL_WIDTH / 2}" y="60" text-anchor="middle" font-family="Inter" font-size="36" font-weight="700" fill="${accent.solid}">${stat.value}</text>` +
+      `<text x="${colX + COL_WIDTH / 2}" y="60" text-anchor="middle" font-family="Houschka Rounded Alt" font-size="36" font-weight="700" fill="${accent.solid}">${stat.value}</text>` +
       `<path d="M${colX + (COL_WIDTH - ARC_WIDTH) / 2} 74 h${ARC_WIDTH} a${ARC_WIDTH / 2} 10 0 0 1 -${ARC_WIDTH} 0 Z" fill="${accent.solid}"/>`
     );
   }).join('') +

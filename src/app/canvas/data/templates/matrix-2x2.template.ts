@@ -5,7 +5,7 @@ import { mergeFixedList, rect, text, translate } from './template-kit';
 
 const ROW_LABEL_W = 70;
 const COL_LABEL_H = 26;
-const CELL_W = 320;
+const CELL_W = 310;
 const CELL_H = 170;
 const GAP = 6;
 

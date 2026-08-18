@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
+import { TCS_CORPORATE, INDIGO_CLASSIC } from '../data/design-themes';
 import { frameElement, groupElement, pageFixture, shapeElement, textElement } from '../../../testing/canvas-fixtures';
 import { DesignLintService, LintRule } from './design-lint.service';
 
@@ -162,5 +163,68 @@ describe('DesignLintService', () => {
     });
 
     expect(rules(service.lint(page))).not.toContain('text-overflow');
+  });
+
+  it('flags TCS blue exceeding 25% of the page under the TCS Corporate theme', () => {
+    const page = pageFixture({
+      width: 1000,
+      height: 1000,
+      elements: [shapeElement({ width: 600, height: 600, fillRef: 'accent-0-solid' })],
+    });
+
+    expect(rules(service.lint(page, TCS_CORPORATE))).toContain('accent-overuse');
+  });
+
+  it('flags TCS orange/red exceeding 10% of the page under the TCS Corporate theme', () => {
+    const page = pageFixture({
+      width: 1000,
+      height: 1000,
+      elements: [shapeElement({ width: 400, height: 400, fillRef: 'accent-2-solid' })],
+    });
+
+    expect(rules(service.lint(page, TCS_CORPORATE))).toContain('accent-overuse');
+  });
+
+  it('does not flag accent usage within the caps', () => {
+    const page = pageFixture({
+      width: 1000,
+      height: 1000,
+      elements: [
+        shapeElement({ width: 300, height: 300, fillRef: 'accent-0-solid' }),
+        shapeElement({ width: 200, height: 200, fillRef: 'accent-2-solid' }),
+      ],
+    });
+
+    expect(rules(service.lint(page, TCS_CORPORATE))).not.toContain('accent-overuse');
+  });
+
+  it('never checks accent balance for a non-TCS theme', () => {
+    const page = pageFixture({
+      width: 1000,
+      height: 1000,
+      elements: [shapeElement({ width: 900, height: 900, fillRef: 'accent-0-solid' })],
+    });
+
+    expect(rules(service.lint(page, INDIGO_CLASSIC))).not.toContain('accent-overuse');
+  });
+
+  it('never checks accent balance when no theme is passed', () => {
+    const page = pageFixture({
+      width: 1000,
+      height: 1000,
+      elements: [shapeElement({ width: 900, height: 900, fillRef: 'accent-0-solid' })],
+    });
+
+    expect(rules(service.lint(page))).not.toContain('accent-overuse');
+  });
+
+  it('ignores literal accent-coloured elements with no fillRef', () => {
+    const page = pageFixture({
+      width: 1000,
+      height: 1000,
+      elements: [shapeElement({ width: 900, height: 900, fill: '#4e84c4' })],
+    });
+
+    expect(rules(service.lint(page, TCS_CORPORATE))).not.toContain('accent-overuse');
   });
 });

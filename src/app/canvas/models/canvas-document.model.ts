@@ -17,6 +17,14 @@ export interface CanvasDocument {
    * `?? []` pattern `Page.groups` already uses.
    */
   theme?: DesignTheme;
+  /**
+   * TCS/TATA branded mode (see `SetBrandedModeCommand`). Optional so a
+   * document saved before branding existed still loads — read as
+   * `document.branded ?? false`. Lives on the document, not editor settings,
+   * so it persists with the project and covers manually-added blank pages
+   * (`PageFactory.createBlank`) as well as generated ones.
+   */
+  branded?: boolean;
 }
 
 export interface Page {

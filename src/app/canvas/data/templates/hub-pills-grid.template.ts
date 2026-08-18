@@ -12,7 +12,7 @@ const PILL_GAP = 50;
 
 const GRID_COLS = 3;
 const GRID_ROWS = 2;
-const CELL_W = 228;
+const CELL_W = 219;
 const CELL_H = 110;
 const CELL_GAP = 20;
 

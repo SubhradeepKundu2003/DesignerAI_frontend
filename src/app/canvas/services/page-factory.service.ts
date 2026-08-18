@@ -2,7 +2,9 @@ import { Injectable, inject } from '@angular/core';
 
 import { Page } from '../models/canvas-document.model';
 import { PAGE_BACKGROUND, PAGE_SIZE } from '../models/editor-config';
+import { BrandAssetsStore } from '../state/brand-assets.store';
 import { CanvasStore } from '../state/canvas.store';
+import { buildBackgroundPatternElement, buildLogoElements, pickBrandedBackground } from '../utils/branding.util';
 import { generateId } from '../utils/id.util';
 
 /**
@@ -16,17 +18,32 @@ import { generateId } from '../utils/id.util';
 @Injectable({ providedIn: 'root' })
 export class PageFactory {
   private readonly canvas = inject(CanvasStore);
+  private readonly brandAssets = inject(BrandAssetsStore);
 
+  /**
+   * A blank page pre-branded when TCS/TATA branded mode is on — so the
+   * manual "+ Add page" button produces a page carrying the logos and
+   * monochrome background pattern too, not just AI-generated ones (see
+   * `NewsletterAssembler.applyBranding`, the same builders this reuses).
+   */
   createBlank(): Page {
-    return {
+    const branded = this.canvas.branded();
+    const background = branded ? pickBrandedBackground() : PAGE_BACKGROUND;
+    const page: Page = {
       id: generateId('page'),
       name: this.nextName(),
       width: PAGE_SIZE.width,
       height: PAGE_SIZE.height,
-      background: PAGE_BACKGROUND,
+      background,
       elements: [],
       groups: [],
     };
+    if (!branded) {
+      return page;
+    }
+    const pattern = buildBackgroundPatternElement(page, background);
+    const logos = buildLogoElements(page, background, this.brandAssets.assets());
+    return { ...page, elements: [pattern, ...logos] };
   }
 
   /**
