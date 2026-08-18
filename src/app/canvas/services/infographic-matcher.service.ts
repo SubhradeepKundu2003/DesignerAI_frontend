@@ -38,9 +38,27 @@ export const SHAPE_TEMPLATE_IDS: Record<InfographicShape, readonly string[]> = {
     'template-card-grid',
     'template-hub-spoke',
     'template-comparison-columns',
+    'template-photo-feature-row',
+    'template-quadrant-info',
   ],
-  timeline: ['template-vertical-timeline', 'template-funnel', 'template-timeline-waypoints'],
+  timeline: [
+    'template-vertical-timeline',
+    'template-funnel',
+    'template-timeline-waypoints',
+    'template-circular-step-timeline',
+    'template-hub-branch-list',
+    'template-icon-card-cluster',
+    'template-nested-arc-comparison',
+    'template-segmented-wheel',
+  ],
   quote: ['template-quote-callout', 'template-quote-spotlight'],
+  grid: [
+    'template-hub-mindmap-6',
+    'template-winding-milestone-path',
+    'template-icon-arch-grid',
+    'template-photo-arch-grid',
+    'template-hub-pills-grid',
+  ],
 };
 
 /**

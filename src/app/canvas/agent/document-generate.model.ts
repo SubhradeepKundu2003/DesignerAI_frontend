@@ -9,7 +9,7 @@ import { IconName } from '../../shared/icons/icon-registry';
  * the model only ever proposes content and intent. `NewsletterAssembler` is
  * the only place this becomes positioned, templated `CanvasElement`s.
  */
-export type LlmBlockKind = 'heading' | 'body' | 'highlight' | 'infographic';
+export type LlmBlockKind = 'heading' | 'body' | 'highlight' | 'infographic' | 'picture';
 
 /**
  * The content shapes every real infographic template in the catalog can be
@@ -27,7 +27,8 @@ export type InfographicShape =
   | 'bar_chart'
   | 'timeline'
   | 'bullet_list'
-  | 'quote';
+  | 'quote'
+  | 'grid';
 
 export interface DataPoint {
   readonly label: string;
@@ -36,6 +37,8 @@ export interface DataPoint {
 
 export interface LlmBlock {
   readonly kind: LlmBlockKind;
+  /** The block's own text -- heading/body/highlight copy, or (for `kind === 'picture'`) an optional
+   * short caption for the placeholder. Never a real image for `'picture'`; see `kind`'s own docs. */
   readonly text: string;
   readonly icon?: IconName;
   /** Only for kind === 'infographic': which real template this block wants -- matched directly, no scoring. */

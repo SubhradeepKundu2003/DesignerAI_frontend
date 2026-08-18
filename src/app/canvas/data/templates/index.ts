@@ -25,6 +25,7 @@ import { NESTED_ARC_COMPARISON_TEMPLATE } from './nested-arc-comparison.template
 import { PERCENTAGE_BAR_RANKING_TEMPLATE } from './percentage-bar-ranking.template';
 import { PHOTO_ARCH_GRID_TEMPLATE } from './photo-arch-grid.template';
 import { PHOTO_FEATURE_ROW_TEMPLATE } from './photo-feature-row.template';
+import { PICTURE_PLACEHOLDER_TEMPLATE } from './picture-placeholder.template';
 import { PYRAMID_TEMPLATE } from './pyramid.template';
 import { QUADRANT_INFO_TEMPLATE } from './quadrant-info.template';
 import { QUADRANT_WHEEL_TEMPLATE } from './quadrant-wheel.template';
@@ -96,4 +97,5 @@ export const INFOGRAPHIC_TEMPLATES: readonly InfographicTemplate[] = [
   WEAVING_ARROW_TIMELINE_TEMPLATE,
   WINDING_MILESTONE_PATH_TEMPLATE,
   HEXAGON_BANNER_HUB_TEMPLATE,
+  PICTURE_PLACEHOLDER_TEMPLATE,
 ];

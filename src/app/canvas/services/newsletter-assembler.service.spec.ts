@@ -5,6 +5,7 @@ import { DEFAULT_THEME } from '../data/design-themes';
 import { CanvasElement, isTextElement } from '../models/canvas-element.model';
 import { PAGE_MARGIN, PAGE_SIZE } from '../models/editor-config';
 import { AssembledPage, NewsletterAssembler } from './newsletter-assembler.service';
+import { SHAPE_TEMPLATE_IDS } from './infographic-matcher.service';
 
 /** Every generated page carries two ambient background half-circles (see
  * `buildPageDecoration`) alongside its real content — filtered out here so
@@ -26,6 +27,10 @@ function infographic(overrides: Partial<LlmBlock> = {}): LlmBlock {
   return { kind: 'infographic', text: '', tags: [], ...overrides };
 }
 
+function picture(caption = ''): LlmBlock {
+  return { kind: 'picture', text: caption, tags: [] };
+}
+
 function resultOf(...blocks: LlmBlock[]): DocumentGenerateResult {
   return { pages: [{ blocks, warnings: [] }] };
 }
@@ -38,7 +43,7 @@ describe('NewsletterAssembler', () => {
     assembler = TestBed.inject(NewsletterAssembler);
   });
 
-  it('should produce one page per section plan when everything fits', () => {
+  it('should pack multiple small section plans onto the same page instead of leaving pages mostly empty', () => {
     const result: DocumentGenerateResult = {
       pages: [
         { blocks: [heading('Intro')], warnings: [] },
@@ -48,7 +53,8 @@ describe('NewsletterAssembler', () => {
 
     const pages = assembler.assemble(result, DEFAULT_THEME);
 
-    expect(pages).toHaveLength(2);
+    expect(pages).toHaveLength(1);
+    expect(contentElements(pages[0])).toHaveLength(2);
   });
 
   it('should stack heading and body text top-down within the page margin', () => {
@@ -153,9 +159,11 @@ describe('NewsletterAssembler', () => {
       ],
     };
 
-    const [pageA, pageB] = assembler.assemble(result, DEFAULT_THEME);
+    const pages = assembler.assemble(result, DEFAULT_THEME);
+    const groupNames = pages.flatMap((page) => page.groups.map((group) => group.name));
 
-    expect(pageA.groups[0].name).not.toBe(pageB.groups[0].name);
+    expect(groupNames).toHaveLength(2);
+    expect(groupNames[0]).not.toBe(groupNames[1]);
   });
 
   it('should push a block that would overflow the page onto a freshly created next page', () => {
@@ -261,8 +269,105 @@ describe('NewsletterAssembler', () => {
 
     const pages = assembler.assemble(result, DEFAULT_THEME);
 
-    const groupNames = pages.map((page) => page.groups[0]?.name);
+    const groupNames = pages.flatMap((page) => page.groups.map((group) => group.name));
     expect(new Set(groupNames).size).toBe(3);
+  });
+
+  it('should render real content on the newly-added grid-shape template, not fabricated defaults', () => {
+    const block = infographic({
+      shape: 'grid',
+      dataPoints: [
+        { label: 'Onboarding', value: 'Walk new hires through day one.' },
+        { label: 'Mentorship', value: 'Pair every hire with a buddy.' },
+        { label: 'Feedback', value: 'Check in at 30/60/90 days.' },
+        { label: 'Growth', value: 'Set a development plan each quarter.' },
+        { label: 'Recognition', value: 'Celebrate wins in the team channel.' },
+        { label: 'Retention', value: 'Exit-interview every departure.' },
+      ],
+    });
+
+    const [assembled] = assembler.assemble(resultOf(block), DEFAULT_THEME);
+
+    expect(assembled.groups).toHaveLength(1);
+    expect(assembled.groups[0].name).toBe('Six-node hub mind map');
+    const branchTitle = assembled.elements.find((el) => el.name === 'Branch 1 title');
+    expect((branchTitle as { text?: string }).text).toBe('Onboarding');
+    const branchBody = assembled.elements.find((el) => el.name === 'Branch 1 body');
+    expect((branchBody as { text?: string }).text).toBe('Walk new hires through day one.');
+  });
+
+  it('should split one grid block\'s dataPoints across the hub-pills-grid template\'s two parallel lists', () => {
+    // Force the matcher past every earlier grid-pool entry to reach
+    // template-hub-pills-grid (last in the pool), whose `build()` needs a
+    // pill label *and* a grid cell body per dataPoint -- both pulled from
+    // the same 6 points rather than losing half the real content.
+    const makeBlock = (i: number) =>
+      infographic({
+        shape: 'grid',
+        dataPoints: Array.from({ length: 6 }, (_, j) => ({ label: `P${i}-${j}`, value: `V${i}-${j}` })),
+      });
+    const result: DocumentGenerateResult = {
+      pages: SHAPE_TEMPLATE_IDS.grid.map((_, i) => ({ blocks: [makeBlock(i)], warnings: [] })),
+    };
+
+    const pages = assembler.assemble(result, DEFAULT_THEME);
+    const lastIndex = SHAPE_TEMPLATE_IDS.grid.length - 1;
+    const allTexts = pages
+      .flatMap((page) => page.elements.map((el) => (el as { text?: string }).text ?? ''))
+      .join(' ');
+
+    expect(pages.flatMap((page) => page.groups.map((g) => g.name))).toContain('Hub with pill branches and grid');
+    expect(allTexts).toContain(`P${lastIndex}-0`);
+    expect(allTexts).toContain(`V${lastIndex}-0`);
+  });
+
+  it('should reach every template in the grid pool across a document, including the newly-added ones', () => {
+    const makeBlock = (i: number) =>
+      infographic({
+        shape: 'grid',
+        dataPoints: Array.from({ length: 6 }, (_, j) => ({ label: `Point ${i}.${j}`, value: `Detail ${i}.${j}` })),
+      });
+    const result: DocumentGenerateResult = {
+      pages: SHAPE_TEMPLATE_IDS.grid.map((_, i) => ({ blocks: [makeBlock(i)], warnings: [] })),
+    };
+
+    const pages = assembler.assemble(result, DEFAULT_THEME);
+    const groupNames = pages.flatMap((page) => page.groups.map((group) => group.name));
+    expect(new Set(groupNames).size).toBe(SHAPE_TEMPLATE_IDS.grid.length);
+  });
+
+  it('should reach every template in the timeline pool across a document, including the newly-added ones', () => {
+    const makeBlock = (i: number) =>
+      infographic({
+        shape: 'timeline',
+        dataPoints: Array.from({ length: 5 }, (_, j) => ({ label: `Step ${i}.${j}`, value: `Detail ${i}.${j}` })),
+      });
+    const result: DocumentGenerateResult = {
+      pages: SHAPE_TEMPLATE_IDS.timeline.map((_, i) => ({ blocks: [makeBlock(i)], warnings: [] })),
+    };
+
+    const pages = assembler.assemble(result, DEFAULT_THEME);
+    const groupNames = pages.flatMap((page) => page.groups.map((group) => group.name));
+    expect(new Set(groupNames).size).toBe(SHAPE_TEMPLATE_IDS.timeline.length);
+    expect(groupNames).toContain('Five-step circular timeline');
+    expect(groupNames).toContain('Five-band fanned comparison');
+  });
+
+  it('should reach every template in the bullet_list pool across a document, including the newly-added ones', () => {
+    const makeBlock = (i: number) =>
+      infographic({
+        shape: 'bullet_list',
+        dataPoints: Array.from({ length: 4 }, (_, j) => ({ label: `Point ${i}.${j}`, value: `Detail ${i}.${j}` })),
+      });
+    const result: DocumentGenerateResult = {
+      pages: SHAPE_TEMPLATE_IDS.bullet_list.map((_, i) => ({ blocks: [makeBlock(i)], warnings: [] })),
+    };
+
+    const pages = assembler.assemble(result, DEFAULT_THEME);
+    const groupNames = pages.flatMap((page) => page.groups.map((group) => group.name));
+    expect(new Set(groupNames).size).toBe(SHAPE_TEMPLATE_IDS.bullet_list.length);
+    expect(groupNames).toContain('Four-card photo feature row');
+    expect(groupNames).toContain('Quadrant pinwheel with center label');
   });
 
   it('should surface a SectionPlan\'s backend warnings on the page it produced', () => {
@@ -289,7 +394,42 @@ describe('NewsletterAssembler', () => {
     }
   });
 
-  it('should shrink an overflowing content-overridden template text box to fit, or report it as a warning', () => {
+  it('should place a picture block as an empty, editable placeholder rather than a real image', () => {
+    const [assembled] = assembler.assemble(resultOf(picture('The new office, pictured last spring')), DEFAULT_THEME);
+
+    expect(assembled.groups).toHaveLength(1);
+    expect(assembled.groups[0].name).toBe('Picture placeholder');
+    const captionElement = assembled.elements.find((el) => el.name === 'Picture caption');
+    expect((captionElement as { text?: string }).text).toBe('The new office, pictured last spring');
+    // The placeholder is ordinary, unlocked elements grouped like any other
+    // infographic -- selectable, movable, resizable, deletable.
+    for (const element of contentElements(assembled)) {
+      expect(element.locked).toBe(false);
+    }
+  });
+
+  it('should fall back to default placeholder copy when a picture block has no caption', () => {
+    const [assembled] = assembler.assemble(resultOf(picture()), DEFAULT_THEME);
+
+    const captionElement = assembled.elements.find((el) => el.name === 'Picture caption');
+    expect((captionElement as { text?: string }).text).toBe('Add a picture here');
+  });
+
+  it('should shrink a mildly overflowing content-overridden template text box to fit', () => {
+    const block = infographic({
+      tags: ['quote', 'testimonial'],
+      quote: Array.from({ length: 4 }, () => 'Word').join('\n'),
+    });
+
+    const [assembled] = assembler.assemble(resultOf(block), DEFAULT_THEME);
+
+    const quoteTextElement = assembled.elements.find((el) => el.name === 'Quote text') as { fontSize: number } | undefined;
+    expect(quoteTextElement?.fontSize).toBeLessThan(19);
+  });
+
+  it('should grow a badly overflowing content-overridden template box to fit instead of clipping it', () => {
+    // Far more text than shrinking to the font-size floor can fit inside the
+    // template's default 88px-tall box.
     const block = infographic({
       tags: ['quote', 'testimonial'],
       quote: Array.from({ length: 10 }, () => 'Word').join('\n'),
@@ -297,8 +437,10 @@ describe('NewsletterAssembler', () => {
 
     const [assembled] = assembler.assemble(resultOf(block), DEFAULT_THEME);
 
-    const quoteTextElement = assembled.elements.find((el) => el.name === 'Quote text') as { fontSize: number } | undefined;
-    const stillOverflowing = assembled.warnings.some((warning) => warning.includes('Quote text'));
-    expect(stillOverflowing || (quoteTextElement && quoteTextElement.fontSize < 19)).toBeTruthy();
+    const quoteTextElement = assembled.elements.find((el) => el.name === 'Quote text') as
+      | { height: number }
+      | undefined;
+    expect(quoteTextElement?.height).toBeGreaterThan(88);
+    expect(assembled.warnings.some((warning) => warning.includes('Quote text'))).toBe(false);
   });
 });

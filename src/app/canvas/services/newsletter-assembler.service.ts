@@ -6,20 +6,32 @@ import { ArcProcessContent } from '../data/templates/arc-process.template';
 import { BarChartContent } from '../data/templates/bar-chart.template';
 import { BarChartCapsContent } from '../data/templates/bar-chart-caps.template';
 import { CardGridContent } from '../data/templates/card-grid.template';
+import { CircularStepTimelineContent } from '../data/templates/circular-step-timeline.template';
 import { ComparisonColumnsContent } from '../data/templates/comparison-columns.template';
 import { FunnelContent } from '../data/templates/funnel.template';
+import { HubBranchListContent } from '../data/templates/hub-branch-list.template';
+import { HubMindmap6Content } from '../data/templates/hub-mindmap-6.template';
+import { HubPillsGridContent } from '../data/templates/hub-pills-grid.template';
 import { HubSpokeContent } from '../data/templates/hub-spoke.template';
+import { IconArchGridContent } from '../data/templates/icon-arch-grid.template';
 import { IconBulletListContent } from '../data/templates/icon-bullet-list.template';
+import { IconCardClusterContent } from '../data/templates/icon-card-cluster.template';
 import { KpiDashboardContent } from '../data/templates/kpi-dashboard.template';
 import { KpiHalfmoonContent } from '../data/templates/kpi-halfmoon.template';
 import { KpiRingGridContent } from '../data/templates/kpi-ring-grid.template';
 import { Matrix2x2Content } from '../data/templates/matrix-2x2.template';
+import { NestedArcComparisonContent } from '../data/templates/nested-arc-comparison.template';
 import { PercentageBarRankingContent } from '../data/templates/percentage-bar-ranking.template';
+import { PhotoArchGridContent } from '../data/templates/photo-arch-grid.template';
+import { PhotoFeatureRowContent } from '../data/templates/photo-feature-row.template';
+import { PICTURE_PLACEHOLDER_TEMPLATE, PicturePlaceholderContent } from '../data/templates/picture-placeholder.template';
 import { PyramidContent } from '../data/templates/pyramid.template';
+import { QuadrantInfoContent } from '../data/templates/quadrant-info.template';
 import { QuadrantWheelContent } from '../data/templates/quadrant-wheel.template';
 import { QuoteCalloutContent } from '../data/templates/quote-callout.template';
 import { QuoteSpotlightContent } from '../data/templates/quote-spotlight.template';
 import { RadialProcessContent } from '../data/templates/radial-process.template';
+import { SegmentedWheelContent } from '../data/templates/segmented-wheel.template';
 import { StatBadgeContent } from '../data/templates/stat-badge.template';
 import { StatCalloutContent } from '../data/templates/stat-callout.template';
 import { StatRowContent } from '../data/templates/stat-row.template';
@@ -29,6 +41,7 @@ import { StepTrackerContent } from '../data/templates/step-tracker.template';
 import { TimelineWaypointsContent } from '../data/templates/timeline-waypoints.template';
 import { VennDiagramContent } from '../data/templates/venn-diagram.template';
 import { VerticalTimelineContent } from '../data/templates/vertical-timeline.template';
+import { WindingMilestonePathContent } from '../data/templates/winding-milestone-path.template';
 import { ZigzagTimelineContent } from '../data/templates/zigzag-timeline.template';
 import { CanvasElement, GroupElement, IconElement, TextElement, isTextElement } from '../models/canvas-element.model';
 import { Page } from '../models/canvas-document.model';
@@ -71,6 +84,7 @@ const SHAPE_DATA_POINT_COUNT: Partial<Record<InfographicShape, number>> = {
   bar_chart: 4,
   bullet_list: 4,
   timeline: 5,
+  grid: 6,
 };
 
 /** Every `mergeFixedList`-based template's exact `dataPoints` requirement,
@@ -114,11 +128,13 @@ interface BlockContext {
   readonly usedTemplateIds: Set<string>;
 }
 
-/** One page-group still waiting to be assembled, queued so an overflowing
- * block can be re-queued as a fresh job (see `assemble()`). */
-interface PageJob {
-  readonly blocks: LlmBlock[];
-  readonly warnings: readonly string[];
+/** One block from a `SectionPlan`, tagged with which plan it came from so a
+ * plan's backend `warnings` can still be attached to the first page its
+ * content actually lands on once every plan's blocks are flattened into one
+ * continuous stream (see `assemble()`). */
+interface QueuedBlock {
+  readonly block: LlmBlock;
+  readonly planIndex: number;
 }
 
 /**
@@ -126,9 +142,10 @@ interface PageJob {
  * template ids — see `document-generate.model.ts`) into positioned, templated
  * elements ready for `AddPageCommand`/`AddElementsCommand`. The one place
  * either generation flow becomes real geometry: `assemble()` for a whole
- * document (`DocumentGenerateResult`, one page per plan, can spill a page's
- * overflow onto a fresh one), `assembleOntoPage()` for a single prompt-driven
- * page (`GenerateMenu`) added onto a page the caller already picked.
+ * document (`DocumentGenerateResult` -- every plan's blocks flattened and
+ * packed continuously, a fresh page starting only once the current one is
+ * actually full), `assembleOntoPage()` for a single prompt-driven page
+ * (`GenerateMenu`) added onto a page the caller already picked.
  *
  * Three responsibilities, in order:
  * 1. Stack `heading`/`body`/`highlight` blocks top-down (deterministic
@@ -147,22 +164,25 @@ export class NewsletterAssembler {
 
   assemble(result: DocumentGenerateResult, theme: DesignTheme): AssembledPage[] {
     const usedTemplateIds = new Set<string>();
-    const queue: PageJob[] = result.pages.map((sectionPlan) => ({
-      blocks: [...sectionPlan.blocks],
-      warnings: sectionPlan.warnings,
-    }));
-    const assembled: AssembledPage[] = [];
-
-    while (queue.length > 0) {
-      const job = queue.shift()!;
-      const { assembledPage, overflow } = this.assembleOnePage(job.blocks, theme, usedTemplateIds, job.warnings);
-      assembled.push(assembledPage);
-      if (overflow.length > 0) {
-        // Only the first page produced from a plan carries its backend warnings —
-        // an overflow continuation is still the same section, already reported once.
-        queue.unshift({ blocks: overflow, warnings: [] });
+    const items: QueuedBlock[] = [];
+    result.pages.forEach((sectionPlan, planIndex) => {
+      for (const block of sectionPlan.blocks) {
+        items.push({ block, planIndex });
       }
-    }
+    });
+    const planWarnings = result.pages.map((sectionPlan) => sectionPlan.warnings);
+    // Once a plan's warnings have been attached to a page, never attach them
+    // again -- a plan's content can still spill across a page boundary, but
+    // it's still the same section, already reported once.
+    const warnedPlans = new Set<number>();
+
+    const assembled: AssembledPage[] = [];
+    let index = 0;
+    do {
+      const { assembledPage, nextIndex } = this.packPage(items, index, theme, usedTemplateIds, planWarnings, warnedPlans);
+      assembled.push(assembledPage);
+      index = nextIndex;
+    } while (index < items.length);
     return assembled;
   }
 
@@ -223,12 +243,22 @@ export class NewsletterAssembler {
     return { elements: page.elements, groups: page.groups, warnings };
   }
 
-  private assembleOnePage(
-    blocks: readonly LlmBlock[],
+  /**
+   * Fills one fresh page starting at `items[startIndex]`, pulling blocks from
+   * however many plans it takes to fill it (not just the plan `items[startIndex]`
+   * came from) and stopping only once a block genuinely doesn't fit -- the fix
+   * for pages that used to end up mostly empty just because the plan that
+   * produced them ran short. `nextIndex` tells the caller where the next page
+   * should resume.
+   */
+  private packPage(
+    items: readonly QueuedBlock[],
+    startIndex: number,
     theme: DesignTheme,
     usedTemplateIds: Set<string>,
-    sourceWarnings: readonly string[],
-  ): { assembledPage: AssembledPage; overflow: LlmBlock[] } {
+    planWarnings: readonly (readonly string[])[],
+    warnedPlans: Set<number>,
+  ): { assembledPage: AssembledPage; nextIndex: number } {
     const page: Page = {
       id: generateId('page'),
       width: PAGE_SIZE.width,
@@ -242,6 +272,7 @@ export class NewsletterAssembler {
 
     const elements: CanvasElement[] = buildPageDecoration(theme, page.width, page.height);
     const groups: GroupElement[] = [];
+    const warnings: string[] = [];
     let cursorY = PAGE_MARGIN;
     let accentIndex = 0;
     // Tracks real content placed, separately from `elements.length` — that
@@ -251,48 +282,62 @@ export class NewsletterAssembler {
     // one with decoration and no content at all.
     let placedBlocks = 0;
 
-    for (let i = 0; i < blocks.length; i++) {
-      const built = this.buildBlock(blocks[i], {
+    let i = startIndex;
+    for (; i < items.length; i++) {
+      const { block, planIndex } = items[i];
+      // `buildInfographicBlock` marks a matched template id "used" as a side
+      // effect of building it, before this loop knows whether the result
+      // will actually fit -- snapshot so a discarded attempt (the `break`
+      // below) can undo that mark. Without this, a block that overflows onto
+      // the next page permanently burns a pool slot for a placement that
+      // never happened, so the *next* page's build of the very same block
+      // matches a different template than the one that's actually rendered.
+      const usedTemplateIdsBeforeBuild = new Set(usedTemplateIds);
+      const built = this.buildBlock(block, {
         origin: { x: PAGE_MARGIN, y: cursorY },
         contentWidth,
         theme,
         accentIndex,
         usedTemplateIds,
       });
-      if (!built) {
-        continue;
+
+      if (built) {
+        const bottom = cursorY + built.height;
+        if (placedBlocks > 0 && bottom > maxY) {
+          // Doesn't fit -- leave it for the next page (where it'll be built
+          // fresh), and don't mark its plan warned yet, since this block
+          // hasn't actually landed anywhere.
+          restoreUsedTemplateIds(usedTemplateIds, usedTemplateIdsBeforeBuild);
+          break;
+        }
+        elements.push(...built.elements);
+        if (built.group) {
+          groups.push(built.group);
+        }
+        placedBlocks += 1;
+        cursorY = bottom + GAP;
+        if (built.usesAccent) {
+          accentIndex += 1;
+        }
       }
 
-      const bottom = cursorY + built.height;
-      if (placedBlocks > 0 && bottom > maxY) {
-        return this.finishPage(page, elements, groups, blocks.slice(i), sourceWarnings);
-      }
-
-      elements.push(...built.elements);
-      if (built.group) {
-        groups.push(built.group);
-      }
-      placedBlocks += 1;
-      cursorY = bottom + GAP;
-      if (built.usesAccent) {
-        accentIndex += 1;
+      if (!warnedPlans.has(planIndex)) {
+        warnedPlans.add(planIndex);
+        warnings.push(...planWarnings[planIndex]);
       }
     }
 
-    return this.finishPage(page, elements, groups, [], sourceWarnings);
-  }
-
-  private finishPage(
-    page: Page,
-    elements: CanvasElement[],
-    groups: GroupElement[],
-    overflow: LlmBlock[],
-    sourceWarnings: readonly string[],
-  ): { assembledPage: AssembledPage; overflow: LlmBlock[] } {
     const finished: Page = { ...page, elements, groups };
     const lintWarnings = this.verifyAndRepair(finished);
-    const warnings = [...sourceWarnings, ...lintWarnings];
-    return { assembledPage: { page: finished, elements: finished.elements, groups: finished.groups, warnings }, overflow };
+    return {
+      assembledPage: {
+        page: finished,
+        elements: finished.elements,
+        groups: finished.groups,
+        warnings: [...warnings, ...lintWarnings],
+      },
+      nextIndex: i,
+    };
   }
 
   private buildBlock(block: LlmBlock, ctx: BlockContext): BuiltBlock | null {
@@ -321,7 +366,26 @@ export class NewsletterAssembler {
         return this.buildHighlightBlock(block, ctx);
       case 'infographic':
         return this.buildInfographicBlock(block, ctx);
+      case 'picture':
+        return this.buildPictureBlock(block, ctx);
     }
+  }
+
+  /**
+   * An empty, editable "add a picture here" slot -- placed only when the
+   * model itself proposes a `picture` block (see `LlmBlock.kind`'s doc
+   * comment), never auto-filled: same "the user decides what picture goes
+   * here" reasoning `_store_extracted_images` already applies to pictures
+   * pulled straight out of the source document.
+   */
+  private buildPictureBlock(block: LlmBlock, ctx: BlockContext): BuiltBlock | null {
+    const content: PicturePlaceholderContent = { caption: block.text || undefined };
+    const origin = {
+      x: ctx.origin.x + Math.max((ctx.contentWidth - PICTURE_PLACEHOLDER_TEMPLATE.size.width) / 2, 0),
+      y: ctx.origin.y,
+    };
+    const { elements, group } = buildTemplatePlacement(PICTURE_PLACEHOLDER_TEMPLATE, origin, content, ctx.theme);
+    return { elements, group, height: PICTURE_PLACEHOLDER_TEMPLATE.size.height, usesAccent: false };
   }
 
   private buildTextBlock(
@@ -469,22 +533,29 @@ export class NewsletterAssembler {
 
   /**
    * Repairs what's cheaply fixable without another model round-trip — an
-   * overflowing content-overridden template box (fixed-height by design, see
-   * each of the six templates' hardcoded text-box heights) shrinks its font
-   * until it fits or hits a floor — then re-lints and reports whatever
-   * remains as a warning. Never drops content and never blocks the commit.
+   * overflowing content-overridden template box (fixed-height by design,
+   * sized for each template's own hardcoded placeholder copy, not for
+   * whatever real content ends up substituted in) first shrinks its font
+   * until it fits or hits a floor. If it still doesn't fit even at that
+   * floor, the box itself grows to the text's real measured height instead
+   * of leaving the overflow clipped — the box is an ordinary element (a
+   * `GroupElement`'s own box is a derived bounding box of its members, see
+   * that type's doc comment), so growing it is just as inspectable/movable/
+   * resizable afterward as anything else placed on the page, no different
+   * from how the user could stretch it by hand. Re-lints after every repair
+   * and reports whatever's still left (e.g. a grown box now overlapping a
+   * neighbour) as a warning. Never drops content and never blocks the commit.
    */
   private verifyAndRepair(page: Page): string[] {
     const overflowIssues = this.lint.lint(page).filter((issue) => issue.rule === 'text-overflow');
     for (const issue of overflowIssues) {
       const index = page.elements.findIndex((element) => element.id === issue.elementIds[0]);
       const element = index >= 0 ? page.elements[index] : undefined;
-      if (element && isTextElement(element)) {
-        const shrunk = shrinkToFit(element);
-        if (shrunk) {
-          page.elements[index] = shrunk;
-        }
+      if (!element || !isTextElement(element)) {
+        continue;
       }
+      const shrunk = shrinkToFit(element);
+      page.elements[index] = shrunk ?? growToFit(element);
     }
     return this.lint.lint(page).map((issue) => issue.message);
   }
@@ -547,6 +618,24 @@ function shrinkToFit(element: TextElement): TextElement | null {
     }
   }
   return null;
+}
+
+/** Rolls `current` back to exactly `snapshot`'s contents, in place -- used to
+ * undo a discarded infographic build's template-id mark (see `packPage`). */
+function restoreUsedTemplateIds(current: Set<string>, snapshot: ReadonlySet<string>): void {
+  for (const id of current) {
+    if (!snapshot.has(id)) {
+      current.delete(id);
+    }
+  }
+}
+
+/** Last resort once `shrinkToFit` can't get text down to `MIN_FONT_SIZE` and still
+ * have it fit — grows the box to the text's real measured height so the content
+ * stays fully visible (and selectable/editable/movable, like any other element)
+ * instead of being silently clipped at its old, placeholder-sized box. */
+function growToFit(element: TextElement): TextElement {
+  return { ...element, height: Math.ceil(measureTextHeight(element)) };
 }
 
 /** First-choice fallback text when a matched template has no content override to receive `block`'s data. */
@@ -692,6 +781,60 @@ function mapBlockToContent(templateId: string, block: LlmBlock): unknown {
       return {
         items: dataPoints.map((point) => ({ text: `${point.label}: ${point.value}` })),
       } satisfies ComparisonColumnsContent;
+    case 'template-photo-feature-row':
+      return {
+        cards: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies PhotoFeatureRowContent;
+    case 'template-quadrant-info':
+      return {
+        callouts: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies QuadrantInfoContent;
+    case 'template-circular-step-timeline':
+      return {
+        steps: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies CircularStepTimelineContent;
+    case 'template-hub-branch-list':
+      return {
+        items: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies HubBranchListContent;
+    case 'template-icon-card-cluster':
+      return {
+        cards: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies IconCardClusterContent;
+    case 'template-nested-arc-comparison':
+      return {
+        bands: dataPoints.map((point) => ({ label: point.label, body: point.value })),
+      } satisfies NestedArcComparisonContent;
+    case 'template-segmented-wheel':
+      return {
+        wedges: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies SegmentedWheelContent;
+    case 'template-hub-mindmap-6':
+      return {
+        branches: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies HubMindmap6Content;
+    case 'template-winding-milestone-path':
+      return {
+        milestones: dataPoints.map((point) => ({ title: point.label, body: point.value })),
+      } satisfies WindingMilestonePathContent;
+    case 'template-icon-arch-grid':
+      // Single-field cards (body only, no separate title) -- fold the point's
+      // label into its body text rather than dropping it, same pattern
+      // `template-comparison-columns` uses above.
+      return {
+        cards: dataPoints.map((point) => ({ body: `${point.label}: ${point.value}` })),
+      } satisfies IconArchGridContent;
+    case 'template-photo-arch-grid':
+      return {
+        cards: dataPoints.map((point) => ({ body: `${point.label}: ${point.value}` })),
+      } satisfies PhotoArchGridContent;
+    case 'template-hub-pills-grid':
+      // Two parallel 6-slot lists sharing the same 6 dataPoints: each pill's
+      // short label out front, its longer elaboration in the grid cell below.
+      return {
+        pills: dataPoints.map((point) => ({ label: point.label })),
+        cells: dataPoints.map((point) => ({ body: point.value })),
+      } satisfies HubPillsGridContent;
     default:
       return undefined;
   }
